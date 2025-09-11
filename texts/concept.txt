@@ -1,0 +1,17 @@
+Modul used fx commands
+
+%1111011000111100
+%0000001001000000
+
+
+Sprite colours
+
+DC.W color00_bits,$813,$702,$401
+
+View: 352x256 (overscan)
+
+Viewport1: 352x70x16
+Gap:       10 Zeilen
+Viewport2: 352x176x8
+
+Overscan-Sprites
