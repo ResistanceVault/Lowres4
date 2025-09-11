@@ -9,7 +9,7 @@
 
 
 
-; Execution time 68000: n rasterlines
+; Execution time 68000: 239 rasterlines
 
 
 	MC68000
@@ -84,7 +84,7 @@ pt_metrochanbits		EQU pt_metrochan1
 pt_metrospeedbits		EQU pt_metrospeed4th
 	ENDC
 
-dma_bits			EQU DMAF_COPPER|DMAF_BLITTER|DMAF_RASTER|DMAF_MASTER|DMAF_SETCLR
+dma_bits			EQU DMAF_SPRITE|DMAF_COPPER|DMAF_BLITTER|DMAF_RASTER|DMAF_MASTER|DMAF_SETCLR
 
 	IFEQ pt_ciatiming_enabled
 intena_bits			EQU INTF_EXTER|INTF_INTEN|INTF_SETCLR
@@ -137,13 +137,13 @@ extra_pf2_x_size		EQU 352
 extra_pf2_y_size		EQU 176
 extra_pf2_depth			EQU 3
 
-spr_number			EQU 0
-spr_x_size1			EQU 0
-spr_y_size1			EQU 0
-spr_x_size2			EQU 0
-spr_y_size2			EQU 0
-spr_depth			EQU 0
-spr_colors_number		EQU 0
+spr_number			EQU 8
+spr_x_size1			EQU 16
+spr_x_size2			EQU 16
+spr_depth			EQU 2
+spr_colors_number		EQU 16
+spr_used_number			EQU 8
+spr_swap_number			EQU 8
 
 	IFD PROTRACKER_VERSION_2 
 audio_memory_size		EQU 0
@@ -191,6 +191,7 @@ display_window_vstart		EQU MINROW
 display_window_hstop		EQU HSTOP_352_PIXEL
 display_window_vstop		EQU VSTOP_256_lines
 
+visible_pixels_number		EQU 352
 visible_lines_number		EQU 256
 
 ; Viewport 1
@@ -298,6 +299,8 @@ lg_image_plane_width		EQU lg_image_x_size/8
 lg_image_y_size			EQU 70
 lg_image_depth			EQU 4
 
+sine_table_length		EQU 512
+
 ; Textwriter
 tw_image_x_size			EQU 320
 tw_image_plane_width		EQU tw_image_x_size/8
@@ -318,6 +321,28 @@ tw_text_cursor_y_size		EQU tw_text_char_y_size
 tw_text_cursor_depth		EQU extra_pf2_depth
 
 tw_delay			EQU 5	; frames
+
+; Sine-Sprites
+ss_image_x_size			EQU 7
+ss_image_y_size			EQU 7
+ss_image_depth			EQU 2
+
+ss_used_sprites_number		EQU 8
+ss_reused_sprites_number	EQU 72
+
+ss_x_center			EQU display_window_hstart+((visible_pixels_number-ss_image_x_size)/2)
+ss_x_radius			EQU (visible_pixels_number-ss_image_x_size)/2
+ss_x_radius_angle_step		EQU 10
+ss_x_radius_angle_speed		EQU 1
+ss_x_angle_speed		EQU 2
+ss_x_distance			EQU 14
+ss_y_center			EQU display_window_vstart+((visible_lines_number-ss_image_y_size)/2)
+ss_y_radius			EQU (visible_lines_number-ss_image_y_size)/2
+ss_y_angle_speed		EQU 3
+ss_y_distance			EQU 14
+
+ss_objects_per_sprite_number	EQU ss_reused_sprites_number/ss_used_sprites_number
+ss_objects_number		EQU ss_objects_per_sprite_number*ss_used_sprites_number
 
 
 vp1_pf1_plane_x_offset		EQU 16
@@ -500,39 +525,208 @@ cl2_size2			EQU 0
 cl2_size3			EQU copperlist2_size
 
 
+; Sprite0 additional structure
+	RSRESET
+
+spr0_extension1			RS.B 0
+
+spr0_ext1_header		RS.L 1
+spr0_ext1_planedata		RS.L ss_image_y_size
+
+spr0_extension1_size		RS.B 0
+
+; Sprite0 main structure
+	RSRESET
+
+spr0_begin			RS.B 0
+
+spr0_extension1_entry		RS.B spr0_extension1_size*ss_objects_per_sprite_number
+
+spr0_end			RS.L 1
+
+sprite0_size			RS.B 0
+
+; Sprite1 additional structure
+	RSRESET
+
+spr1_extension1			RS.B 0
+
+spr1_ext1_header		RS.L 1
+spr1_ext1_planedata		RS.L ss_image_y_size
+
+spr1_extension1_size		RS.B 0
+
+; Sprite1 main structure
+	RSRESET
+
+spr1_begin			RS.B 0
+
+spr1_extension1_entry		RS.B spr1_extension1_size*ss_objects_per_sprite_number
+
+spr1_end			RS.L 1
+
+sprite1_size			RS.B 0
+
+; Sprite2 additional structure
+	RSRESET
+
+spr2_extension1			RS.B 0
+
+spr2_ext1_header		RS.L 1
+spr2_ext1_planedata		RS.L ss_image_y_size
+
+spr2_extension1_size		RS.B 0
+
+; Sprite2 main structure
+	RSRESET
+
+spr2_begin			RS.B 0
+
+spr2_extension1_entry		RS.B spr2_extension1_size*ss_objects_per_sprite_number
+
+spr2_end			RS.L 1
+
+sprite2_size			RS.B 0
+
+; Sprite3 additional structure
+	RSRESET
+
+spr3_extension1			RS.B 0
+
+spr3_ext1_header		RS.L 1
+spr3_ext1_planedata		RS.L ss_image_y_size
+
+spr3_extension1_size		RS.B 0
+
+; Sprite3 main structure
+	RSRESET
+
+spr3_begin			RS.B 0
+
+spr3_extension1_entry		RS.B spr3_extension1_size*ss_objects_per_sprite_number
+
+spr3_end			RS.L 1
+
+sprite3_size			RS.B 0
+
+; Sprite4 additional structure
+	RSRESET
+
+spr4_extension1			RS.B 0
+
+spr4_ext1_header		RS.L 1
+spr4_ext1_planedata		RS.L ss_image_y_size
+
+spr4_extension1_size		RS.B 0
+
+; Sprite4 main structure
+	RSRESET
+
+spr4_begin			RS.B 0
+
+spr4_extension1_entry		RS.B spr4_extension1_size*ss_objects_per_sprite_number
+
+spr4_end			RS.L 1
+
+sprite4_size			RS.B 0
+
+; Sprite5 additional structure
+	RSRESET
+
+spr5_extension1			RS.B 0
+
+spr5_ext1_header		RS.L 1
+spr5_ext1_planedata		RS.L ss_image_y_size
+
+spr5_extension1_size		RS.B 0
+
+; Sprite5 main structure
+	RSRESET
+
+spr5_begin			RS.B 0
+
+spr5_extension1_entry		RS.B spr5_extension1_size*ss_objects_per_sprite_number
+
+spr5_end			RS.L 1
+
+sprite5_size			RS.B 0
+
+; Sprite6 additional structure
+	RSRESET
+
+spr6_extension1			RS.B 0
+
+spr6_ext1_header		RS.L 1
+spr6_ext1_planedata		RS.L ss_image_y_size
+
+spr6_extension1_size		RS.B 0
+
+; Sprite6 main structure
+	RSRESET
+
+spr6_begin			RS.B 0
+
+spr6_extension1_entry		RS.B spr6_extension1_size*ss_objects_per_sprite_number
+
+spr6_end			RS.L 1
+
+sprite6_size			RS.B 0
+
+; Sprite7 additional structure
+	RSRESET
+
+spr7_extension1			RS.B 0
+
+spr7_ext1_header		RS.L 1
+spr7_ext1_planedata		RS.L ss_image_y_size
+
+spr7_extension1_size		RS.B 0
+
+; Sprite7 main structure
+	RSRESET
+
+spr7_begin			RS.B 0
+
+spr7_extension1_entry		RS.B spr7_extension1_size*ss_objects_per_sprite_number
+
+spr7_end			RS.L 1
+
+sprite7_size			RS.B 0
+
+
 spr0_x_size1			EQU spr_x_size1
-spr0_y_size1			EQU 0
+spr0_y_size1			EQU sprite0_size/4
 spr1_x_size1			EQU spr_x_size1
-spr1_y_size1			EQU 0
+spr1_y_size1			EQU sprite1_size/4
 spr2_x_size1			EQU spr_x_size1
-spr2_y_size1			EQU 0
+spr2_y_size1			EQU sprite2_size/4
 spr3_x_size1			EQU spr_x_size1
-spr3_y_size1			EQU 0
+spr3_y_size1			EQU sprite3_size/4
 spr4_x_size1			EQU spr_x_size1
-spr4_y_size1			EQU 0
+spr4_y_size1			EQU sprite4_size/4
 spr5_x_size1			EQU spr_x_size1
-spr5_y_size1			EQU 0
+spr5_y_size1			EQU sprite5_size/4
 spr6_x_size1			EQU spr_x_size1
-spr6_y_size1			EQU 0
+spr6_y_size1			EQU sprite6_size/4
 spr7_x_size1			EQU spr_x_size1
-spr7_y_size1			EQU 0
+spr7_y_size1			EQU sprite7_size/4
 
 spr0_x_size2			EQU spr_x_size2
-spr0_y_size2			EQU 0
+spr0_y_size2			EQU sprite0_size/4
 spr1_x_size2			EQU spr_x_size2
-spr1_y_size2			EQU 0
+spr1_y_size2			EQU sprite1_size/4
 spr2_x_size2			EQU spr_x_size2
-spr2_y_size2			EQU 0
+spr2_y_size2			EQU sprite2_size/4
 spr3_x_size2			EQU spr_x_size2
-spr3_y_size2			EQU 0
+spr3_y_size2			EQU sprite3_size/4
 spr4_x_size2			EQU spr_x_size2
-spr4_y_size2			EQU 0
+spr4_y_size2			EQU sprite4_size/4
 spr5_x_size2			EQU spr_x_size2
-spr5_y_size2			EQU 0
+spr5_y_size2			EQU sprite5_size/4
 spr6_x_size2			EQU spr_x_size2
-spr6_y_size2			EQU 0
+spr6_y_size2			EQU sprite6_size/4
 spr7_x_size2			EQU spr_x_size2
-spr7_y_size2			EQU 0
+spr7_y_size2			EQU sprite7_size/4
 
 
 	RSRESET
@@ -560,6 +754,11 @@ tw_cursor_x_position		RS.W 1
 tw_cursor_y_position		RS.W 1
 
 tw_delay_counter		RS.W 1
+
+; Sine-Sprites
+ss_x_radius_angle		RS.W 1
+ss_x_angle			RS.W 1
+ss_y_angle			RS.W 1
 
 variables_size			RS.B 0
 
@@ -595,6 +794,12 @@ init_main_variables
 	move.w	d0,tw_cursor_y_position(a3)
 
 	move.w	#1,tw_delay_counter(a3)	; enable counter
+
+; Sine-Sprites
+	move.w	#(sine_table_length/4)*WORD_SIZE,ss_x_radius_angle(a3)
+	move.w	#(sine_table_length/4)*WORD_SIZE,ss_x_angle(a3)
+	clr.w	ss_y_angle(a3)
+
 	rts
 
 
@@ -609,6 +814,8 @@ init_main
 	bsr	init_colors
 	bsr	lg_copy_image_to_playfield
 	bsr	tw_init_chars_offsets
+	bsr	ss_init_xy_starts
+	bsr	init_sprites
 	bsr	init_first_copperlist
 	bsr	init_second_copperlist
 	rts
@@ -685,11 +892,61 @@ lg_copy_image_data_loop
 	INIT_CHARS_OFFSETS.W tw
 
 
+; Sine-Sprites
+	CNOP 0,4
+ss_init_xy_starts
+	moveq	#0,d0			; 1st xy start
+	lea	ss_xy_starts(pc),a0
+	moveq	#ss_reused_sprites_number-1,d7
+ss_init_xy_starts_loop
+	move.w	d0,(a0)+		; xy start
+	addq.w	#2*WORD_SIZE,d0		; next xy start
+	dbf	d7,ss_init_xy_starts_loop
+	rts
+
+
+	CNOP 0,4
+init_sprites
+	bsr.s	spr_init_pointers_table
+	bsr	ss_init_sprites_bitmaps
+	bra	spr_copy_structures
+
+
+	INIT_SPRITE_POINTERS_TABLE
+
+
+	CNOP 0,4
+ss_init_sprites_bitmaps
+	movem.l a4-a6,-(a7)
+	lea	spr_pointers_construction(pc),a2
+	lea	ss_image_data,a4
+	moveq	#ss_used_sprites_number-1,d7
+ss_init_sprites_bitmaps_loop1
+	move.l	(a2)+,a0		; 1st sprite structure
+	moveq	#ss_objects_per_sprite_number-1,d6
+ss_init_sprites_bitmaps_loop2
+	addq.w	#LONGWORD_SIZE,a0 	; skip header
+	move.l	a4,a1			; image data
+	moveq	#ss_image_y_size-1,d5
+ss_init_sprites_bitmaps_loop3
+	move.l	(a1)+,(a0)+		; copy 1 word plane1&1
+	dbf	d5,ss_init_sprites_bitmaps_loop3
+	dbf	d6,ss_init_sprites_bitmaps_loop2
+	dbf	d7,ss_init_sprites_bitmaps_loop1
+	movem.l (a7)+,a4-a6
+	rts
+
+
+	COPY_SPRITE_STRUCTURES
+
+
 	CNOP 0,4
 init_first_copperlist
 	move.l	cl1_display(a3),a0
 ; View
 	bsr.s	cl1_init_playfield_props
+	bsr	cl1_init_sprite_pointers
+	bsr	cl1_init_colors
 ; Viewport 1
 	bsr	cl1_vp1_init_playfield_props
 	bsr	cl1_vp1_init_colors
@@ -715,6 +972,16 @@ init_first_copperlist
 
 ; View
 	COP_INIT_PLAYFIELD_REGISTERS cl1,NOBITPLANES
+
+	COP_INIT_SPRITE_POINTERS cl1
+
+	CNOP 0,4
+cl1_init_colors
+	COP_INIT_COLOR COLOR16,16,spr_rgb4_color_table
+	rts
+
+
+	COP_SET_SPRITE_POINTERS cl1,display,spr_number
 
 
 ; Viewport 1
@@ -903,13 +1170,26 @@ no_sync_routines
 	CNOP 0,4
 beam_routines
 	bsr	wait_copint
+	bsr.s	swap_sprite_structures
+	bsr.s	set_sprite_pointers
 	bsr.s	textwriter
 	bsr	tw_display_cursor
 	bsr	cl1_update_bpl1dat
+	bsr	ss_calculate_xy_coordinates
+	movem.l a4-a6,-(a7)
+	bsr	ss_sort_y_coordinates
+	movem.l (a7)+,a4-a6
+	bsr	ss_move_sprites
 	bsr	control_counters
 	btst	#CIAB_GAMEPORT0,CIAPRA(a4) ; LMB pressed ?
 	bne.s	beam_routines
 	rts
+
+
+	SWAP_SPRITES spr_swap_number
+
+
+	SET_SPRITES spr_swap_number
 
 
 ; Input
@@ -1084,6 +1364,144 @@ cl1_update_bpl1dat_loop
 	rts
 
 
+	CNOP 0,4
+ss_calculate_xy_coordinates
+	movem.l a3-a6,-(a7)
+	move.w	#ss_x_radius*2*2,d1
+	move.w	#ss_y_radius*2,d2
+	move.w	ss_x_radius_angle(a3),d3
+	move.w	d3,d0		
+	MOVEF.W (sine_table_length-1)*WORD_SIZE,d6 ; overflow 360°
+	move.w	ss_x_angle(a3),d4
+	addq.w	#ss_x_radius_angle_speed*WORD_SIZE,d0
+	and.w	d6,d0			; remove overflow
+	move.w	d0,ss_x_radius_angle(a3) 
+	move.w	d4,d0		
+	addq.w	#ss_x_angle_speed*WORD_SIZE,d0
+	move.w	ss_y_angle(a3),d5
+	and.w	d6,d0			; remove overflow
+	move.w	d0,ss_x_angle(a3)	
+	move.w	d5,d0		
+	addq.w	#ss_y_angle_speed*WORD_SIZE,d0
+	and.w	d6,d0			; remove overflow
+	move.w	d0,ss_y_angle(a3)	
+	lea	sine_table(pc),a0	
+	lea	ss_xy_coordinates(pc),a1
+	move.w	#ss_x_center,a2
+	move.w	#ss_x_distance*WORD_SIZE,a3
+	move.w	#ss_y_center,a4
+	move.w	#ss_x_radius_angle_step*WORD_SIZE,a5
+	move.w	#ss_y_distance*WORD_SIZE,a6
+	moveq	#ss_reused_sprites_number-1,d7
+ss_calculate_xy_coordinates_loop
+	move.w	(a0,d3.w),d0		; cos(w)
+	add.w	a5,d3			; next x radius angle
+	muls.w	d1,d0			; xr'=(xr*cos(w))/2^15
+	swap	d0
+	and.w	d6,d3			; remove overflow
+	muls.w	(a0,d4.w),d0		; x'=(xr'*cos(w))/2^15
+	swap	d0
+	add.w	a3,d4			; next x angle
+	add.w	a2,d0			; x' + x center
+	move.w	d0,(a1)+		; x position
+	and.w	d6,d4			; remove overflow
+	move.w	(a0,d5.w),d0
+	muls.w	d2,d0			; y'=(yr*sin(w))/2^15
+	add.w	a6,d5			; next y angle
+	swap	d0
+	and.w	d6,d5			; remove overflow
+	add.w	a4,d0			; y' + y center
+	move.w	d0,(a1)+		; y position
+	dbf	d7,ss_calculate_xy_coordinates_loop
+	movem.l (a7)+,a3-a6
+	rts
+
+
+	CNOP 0,4
+ss_sort_y_coordinates
+	moveq	#-2,d2			; mask to clear bit 0
+	lea	ss_xy_starts(pc),a0
+	move.l	a0,a1			; store pointer
+	lea	(ss_reused_sprites_number-1)*WORD_SIZE(a0),a2 ; last entry
+	move.l	a2,a5
+	lea	ss_xy_coordinates(pc),a6
+ss_quicks
+	move.l	a5,d0			; pointer last entry
+	add.l	a0,d0			; pointer first entry + last entry
+	lsr.l	#1,d0			; middle of table
+	and.b	d2,d0			; only even
+	move.l	d0,a4			; store middle of table
+	move.w	(a4),d1			; xy start
+	move.w	WORD_SIZE(a6,d1.w),d0	; y
+ss_quick
+	move.w	(a1)+,d1		; xy start
+	cmp.w	WORD_SIZE(a6,d1.w),d0	; 1st y < middle y ?
+	bgt.s	ss_quick
+	subq.w	#WORD_SIZE,a1		; reset pointer
+	addq.w	#WORD_SIZE,a2		; next xy start
+ss_quick2
+	move.w	-(a2),d1		; xy start
+	cmp.w	WORD_SIZE(a6,d1.w),d0	; penultimate y > middle y ?
+	blt.s	ss_quick2
+ss_quick3
+	cmp.l	a2,a1			; pointer end of table > pointer table beginning ?
+	bgt.s	ss_quick4
+	move.w	(a2),d1			; last start
+	move.w	(a1),(a2)		; 1st start -> last start
+	subq.w	#WORD_SIZE,a2		; penultimate start
+	move.w	d1,(a1)+		; last start -> 1st start
+ss_quick4
+	cmp.l	a2,a1			; pointer beginning of table <= pointer end of table ?
+	ble.s	ss_quick
+	cmp.l	a2,a0			; pointer beginning of table >= pointer end of table ?
+	bge.s	ss_quick5
+	move.l	a5,-(a7)
+	move.l	a2,a5			; store pointer end of table
+	move.l	a0,a1
+	bsr.s	ss_quicks
+	move.l	(a7)+,a5
+ss_quick5
+	cmp.l	a5,a1			; pointer beginning of table >= pointer end of table ?
+	bge.s	ss_quick6
+	move.l	a0,-(a7)
+	move.l	a1,a0
+	move.l	a5,a2
+	bsr.s	ss_quicks
+	move.l	(a7)+,a0
+ss_quick6
+	rts
+
+
+	CNOP 0,4
+ss_move_sprites
+	movem.l a3-a6,-(a7)
+	lea	spr_pointers_construction(pc),a2
+	sub.l	a3,a3
+	move.w	#spr0_extension1_size,a4
+	lea	ss_xy_starts(pc),a5
+	lea	ss_xy_coordinates(pc),a6
+	moveq	#ss_objects_per_sprite_number-1,d7
+ss_move_sprites_loop1
+	move.l	a2,a1			; pointer sprite structures
+	moveq	#ss_used_sprites_number-1,d6
+ss_move_sprites_loop2
+	move.l	(a1)+,a0		; pointer sprite structure
+	add.l	a3,a0			; + offset current sprite
+	move.w	(a5)+,d0		; xy start
+	moveq	#ss_image_y_size,d2
+	move.w	WORD_SIZE(a6,d0.w),d1	; y
+	add.w	d1,d2			; VSTOP
+	move.w	(a6,d0.w),d0		; x
+	SET_SPRITE_POSITION d0,d1,d2
+	move.w	d1,(a0)+		; SPRxPOS
+	move.w	d2,(a0)			; SPRxCTL
+	dbf	d6,ss_move_sprites_loop2
+	add.l	a4,a3			; next sprite structure
+	dbf	d7,ss_move_sprites_loop1
+	movem.l (a7)+,a3-a6
+	rts
+
+
 ; Input
 ; Result
 	CNOP 0,4
@@ -1163,6 +1581,112 @@ vp2_pf1_rgb4_color_table
 	DC.W color00_bits,color00_bits,color00_bits
 	DC.W $931			; cursor color
 
+	CNOP 0,2
+spr_rgb4_color_table
+	DC.W color00_bits,$08f,$048,$024
+	DC.W color00_bits,$08f,$048,$024
+	DC.W color00_bits,$08f,$048,$024
+	DC.W color00_bits,$08f,$048,$024
+
+
+	CNOP 0,4
+spr_pointers_construction
+	DS.L spr_number
+
+	CNOP 0,4
+spr_pointers_display
+	DS.L spr_number
+
+
+	CNOP 0,2
+sine_table
+	DC.W $0000,$FE72,$FCE3,$FB54,$F9C5,$F837
+	DC.W $F6A9,$F51B,$F38E,$F201,$F075,$EEE9
+	DC.W $ED5E,$EBD4,$EA4A,$E8C2,$E73A,$E5B3
+	DC.W $E42D,$E2A8,$E125,$DFA2,$DE21,$DCA1
+	DC.W $DB23,$D9A6,$D82A,$D6B0,$D538,$D3C1
+	DC.W $D24C,$D0D8,$CF67,$CDF7,$CC89,$CB1E
+	DC.W $C9B4,$C84C,$C6E7,$C583,$C422,$C2C4
+	DC.W $C167,$C00D,$BEB6,$BD61,$BC0F,$BABF
+	DC.W $B972,$B827,$B6E0,$B59B,$B459,$B31A
+	DC.W $B1DE,$B0A5,$AF6F,$AE3C,$AD0D,$ABE0
+	DC.W $AAB7,$A991,$A86E,$A74F,$A633,$A51B
+	DC.W $A406,$A2F4,$A1E7,$A0DD,$9FD6,$9ED3
+	DC.W $9DD4,$9CD9,$9BE2,$9AEE,$99FF,$9913
+	DC.W $982B,$9747,$9668,$958C,$94B5,$93E1
+	DC.W $9312,$9247,$9180,$90BE,$8FFF,$8F46
+	DC.W $8E90,$8DDF,$8D32,$8C8A,$8BE6,$8B46
+	DC.W $8AAB,$8A15,$8983,$88F6,$886D,$87E9
+	DC.W $8769,$86EF,$8678,$8607,$859A,$8532
+	DC.W $84CF,$8470,$8416,$83C1,$8371,$8326
+	DC.W $82DF,$829D,$8260,$8228,$81F5,$81C7
+	DC.W $819D,$8178,$8159,$813E,$8128,$8117
+	DC.W $810A,$8103,$8100,$8103,$810A,$8117
+	DC.W $8128,$813E,$8159,$8178,$819D,$81C7
+	DC.W $81F5,$8228,$8260,$829D,$82DF,$8326
+	DC.W $8371,$83C1,$8416,$8470,$84CF,$8532
+	DC.W $859A,$8607,$8678,$86EF,$8769,$87E9
+	DC.W $886D,$88F6,$8983,$8A15,$8AAB,$8B46
+	DC.W $8BE6,$8C8A,$8D32,$8DDF,$8E90,$8F46
+	DC.W $9000,$90BE,$9180,$9247,$9312,$93E1
+	DC.W $94B5,$958C,$9668,$9747,$982B,$9913
+	DC.W $99FF,$9AEE,$9BE2,$9CD9,$9DD4,$9ED3
+	DC.W $9FD6,$A0DD,$A1E7,$A2F5,$A406,$A51B
+	DC.W $A633,$A74F,$A86E,$A991,$AAB7,$ABE0
+	DC.W $AD0D,$AE3C,$AF6F,$B0A5,$B1DE,$B31A
+	DC.W $B459,$B59B,$B6E0,$B828,$B972,$BABF
+	DC.W $BC0F,$BD61,$BEB6,$C00E,$C167,$C2C4
+	DC.W $C423,$C584,$C6E7,$C84C,$C9B4,$CB1E
+	DC.W $CC89,$CDF7,$CF67,$D0D8,$D24C,$D3C1
+	DC.W $D538,$D6B0,$D82A,$D9A6,$DB23,$DCA1
+	DC.W $DE21,$DFA2,$E125,$E2A8,$E42D,$E5B3
+	DC.W $E73A,$E8C2,$EA4A,$EBD4,$ED5E,$EEE9
+	DC.W $F075,$F201,$F38E,$F51B,$F6A9,$F837
+	DC.W $F9C5,$FB54,$FCE3,$FE72,$0000,$018F
+	DC.W $031E,$04AC,$063B,$07C9,$0957,$0AE5
+	DC.W $0C72,$0DFF,$0F8B,$1117,$12A2,$142C
+	DC.W $15B6,$173F,$18C6,$1A4D,$1BD3,$1D58
+	DC.W $1EDB,$205E,$21DF,$235F,$24DD,$265B
+	DC.W $27D6,$2950,$2AC9,$2C3F,$2DB5,$2F28
+	DC.W $3099,$3209,$3377,$34E3,$364C,$37B4
+	DC.W $3919,$3A7D,$3BDE,$3D3C,$3E99,$3FF3
+	DC.W $414A,$429F,$43F2,$4541,$468E,$47D9
+	DC.W $4920,$4A65,$4BA7,$4CE6,$4E22,$4F5B
+	DC.W $5091,$51C4,$52F4,$5420,$5549,$566F
+	DC.W $5792,$58B1,$59CD,$5AE6,$5BFA,$5D0C
+	DC.W $5E19,$5F24,$602A,$612D,$622C,$6327
+	DC.W $641E,$6512,$6602,$66ED,$67D5,$68B9
+	DC.W $6998,$6A74,$6B4C,$6C1F,$6CEE,$6DB9
+	DC.W $6E80,$6F42,$7001,$70BB,$7170,$7221
+	DC.W $72CE,$7376,$741A,$74BA,$7555,$75EB
+	DC.W $767D,$770A,$7793,$7817,$7897,$7911
+	DC.W $7988,$79F9,$7A66,$7ACE,$7B31,$7B90
+	DC.W $7BEA,$7C3F,$7C8F,$7CDA,$7D21,$7D63
+	DC.W $7DA0,$7DD8,$7E0B,$7E39,$7E63,$7E88
+	DC.W $7EA7,$7EC2,$7ED8,$7EE9,$7EF6,$7EFD
+	DC.W $7F00,$7EFD,$7EF6,$7EE9,$7ED8,$7EC2
+	DC.W $7EA7,$7E88,$7E63,$7E39,$7E0B,$7DD8
+	DC.W $7DA0,$7D63,$7D21,$7CDA,$7C8F,$7C3E
+	DC.W $7BE9,$7B90,$7B31,$7ACE,$7A66,$79F9
+	DC.W $7987,$7911,$7896,$7817,$7793,$770A
+	DC.W $767D,$75EB,$7555,$74BA,$741A,$7376
+	DC.W $72CE,$7221,$7170,$70BA,$7000,$6F42
+	DC.W $6E80,$6DB9,$6CEE,$6C1F,$6B4B,$6A74
+	DC.W $6998,$68B8,$67D5,$66ED,$6601,$6512
+	DC.W $641E,$6327,$622B,$612C,$602A,$5F23
+	DC.W $5E19,$5D0B,$5BFA,$5AE5,$59CD,$58B1
+	DC.W $5792,$566F,$5549,$5420,$52F3,$51C3
+	DC.W $5091,$4F5B,$4E22,$4CE6,$4BA7,$4A65
+	DC.W $4920,$47D8,$468E,$4541,$43F1,$429F
+	DC.W $414A,$3FF2,$3E98,$3D3C,$3BDD,$3A7C
+	DC.W $3919,$37B3,$364C,$34E2,$3376,$3209
+	DC.W $3099,$2F27,$2DB4,$2C3F,$2AC8,$2950
+	DC.W $27D6,$265A,$24DD,$235E,$21DE,$205D
+	DC.W $1EDB,$1D57,$1BD2,$1A4D,$18C6,$173E
+	DC.W $15B5,$142C,$12A2,$1117,$0F8B,$0DFF
+	DC.W $0C72,$0AE4,$0957,$07C9,$063A,$04AC
+	DC.W $031D,$018E
+
 
 ; PT-Replay
 	INCLUDE "music-tracker/pt-invert-table.i"
@@ -1194,6 +1718,16 @@ tw_chars_offsets
 	DS.W tw_ascii_end-tw_ascii
 
 
+; Sine-Sprites
+	CNOP 0,2
+ss_xy_starts
+	DS.W ss_objects_number
+
+	CNOP 0,2
+ss_xy_coordinates
+	DS.W ss_objects_number*2
+
+
 	INCLUDE "sys-variables.i"
 
 
@@ -1204,10 +1738,10 @@ tw_chars_offsets
 
 
 	DC.B "$VER: "
-	DC.B "PT-Replay"
-	DC.B "4.3 "
-	DC.B "(15.4.25) "
-	DC.B "by Christian Gerbig",0
+	DC.B "Lowres4Intro "
+	DC.B "1.0 beta "
+	DC.B "(11.9.25) "
+	DC.B "© 2025 by Resistance",0
 	EVEN
 
 
@@ -1224,7 +1758,7 @@ tw_text
 	DC.B ASCII_CTRL_M
 	DC.B ASCII_CTRL_M
 	DC.B "SEE YOU..."
-	DC.B ASCII_CTRL_S
+	DC.B ASCII_CTRL_S," "
 tw_text_end
 	EVEN
 
@@ -1252,5 +1786,9 @@ lg_image_data			SECTION lg_gfx,DATA
 ; Textwriter
 tw_image_data			SECTION tw_gfx,DATA
 	INCBIN "Lowres4:fonts/16x15x4-Font.rawblit"
+
+; Sine-Sprites
+ss_image_data			SECTION ss_gfx,DATA
+	INCBIN "Lowres4:graphics/7x7x4-Bubble.rawblit"
 
 	END
