@@ -84,7 +84,7 @@ pt_metrochanbits		EQU pt_metrochan1
 pt_metrospeedbits		EQU pt_metrospeed4th
 	ENDC
 
-dma_bits			EQU DMAF_COPPER|DMAF_RASTER|DMAF_MASTER|DMAF_SETCLR
+dma_bits			EQU DMAF_COPPER|DMAF_BLITTER|DMAF_RASTER|DMAF_MASTER|DMAF_SETCLR
 
 	IFEQ pt_ciatiming_enabled
 intena_bits			EQU INTF_EXTER|INTF_INTEN|INTF_SETCLR
@@ -298,6 +298,27 @@ lg_image_plane_width		EQU lg_image_x_size/8
 lg_image_y_size			EQU 70
 lg_image_depth			EQU 4
 
+; Textwriter
+tw_image_x_size			EQU 320
+tw_image_plane_width		EQU tw_image_x_size/8
+tw_image_depth			EQU 2
+tw_origin_char_x_size		EQU 16
+tw_origin_char_y_size		EQU 15
+
+tw_text_char_x_size		EQU 16
+tw_text_char_width		EQU tw_text_char_x_size/8
+tw_text_char_y_size		EQU tw_origin_char_y_size
+tw_text_char_depth		EQU tw_image_depth
+
+tw_max_x_position		EQU vp2_visible_pixels_number-tw_text_char_x_size
+
+tw_text_cursor_x_size		EQU tw_text_char_x_size
+tw_text_cursor_width		EQU tw_text_cursor_x_size/8
+tw_text_cursor_y_size		EQU tw_text_char_y_size
+tw_text_cursor_depth		EQU extra_pf2_depth
+
+tw_delay			EQU 5	; frames
+
 
 vp1_pf1_plane_x_offset		EQU 16
 vp1_pf1_bpl1dat_x_offset	EQU 0
@@ -432,6 +453,7 @@ cl1_ext6_WAIT			RS.L 1
 cl1_ext6_BPL3DAT		RS.L 1
 cl1_ext6_BPL2DAT		RS.L 1
 cl1_ext6_BPL1DAT		RS.L 1
+cl1_ext6_NOOP			RS.L 1
 
 cl1_extension6_size		RS.B 0
 
@@ -525,6 +547,20 @@ spr7_y_size2			EQU 0
 		INCLUDE "music-tracker/pt3-variables.i"
 	ENDC
 
+; Textwriter
+tw_active			RS.W 1
+	RS_ALIGN_LONGWORD
+tw_image			RS.L 1
+tw_text_table_start		RS.W 1
+tw_text_char_x_position		RS.W 1
+tw_text_char_y_position		RS.W 1
+
+tw_cursor_active		RS.W 1
+tw_cursor_x_position		RS.W 1
+tw_cursor_y_position		RS.W 1
+
+tw_delay_counter		RS.W 1
+
 variables_size			RS.B 0
 
 
@@ -544,6 +580,21 @@ init_main_variables
 	IFD PROTRACKER_VERSION_3
 		PT3_INIT_VARIABLES
 	ENDC
+
+; Textwriter
+	moveq	#TRUE,d0
+	move.w	d0,tw_active(a3)
+	lea	tw_image_data,a0
+	move.l	a0,tw_image(a3)
+	move.w	d0,tw_text_table_start(a3)
+	move.w	d0,tw_text_char_x_position(a3)
+	move.w	d0,tw_text_char_y_position(a3)
+
+	move.w	d0,tw_cursor_active(a3)
+	move.w	d0,tw_cursor_x_position(a3)
+	move.w	d0,tw_cursor_y_position(a3)
+
+	move.w	#1,tw_delay_counter(a3)	; enable counter
 	rts
 
 
@@ -557,6 +608,7 @@ init_main
 	bsr	init_CIA_timers
 	bsr	init_colors
 	bsr	lg_copy_image_to_playfield
+	bsr	tw_init_chars_offsets
 	bsr	init_first_copperlist
 	bsr	init_second_copperlist
 	rts
@@ -627,6 +679,10 @@ lg_copy_image_data_loop
 
 	ADDF.W	extra_pf1_plane_width,a4 ; next bitplane in destination
 	rts
+
+
+; Textwriter
+	INIT_CHARS_OFFSETS.W tw
 
 
 	CNOP 0,4
@@ -763,23 +819,22 @@ cl1_vp2_init_bpldat
 	move.l	extra_pf2(a3),a1
 	ADDF.W	vp2_pf1_BPL1DAT_x_offset/8,a1 ; bitplane 1
 	move.l	#(((cl1_vstart3<<24)|(((cl1_hstart3/4)*2)<<16))|$10000)|$fffe,d0 ; CWAIT
-	move.w	#BPL1DAT,d1
-	move.w	#BPL2DAT,d2
-	move.w	#BPL3DAT,d3
+	move.l	#BPL1DAT<<16,d1
+	move.l	#BPL2DAT<<16,d2
+	move.l	#BPL3DAT<<16,d3
 	move.l	#(((CL_Y_WRAPPING<<24)|(((cl1_hstart3/4)*2)<<16))|$10000)|$fffe,d4 ; CWAIT
 	move.l	#1<<24,d5
 	MOVEF.W vp2_visible_lines_number-1,d7
 cl1_vp2_init_bpldat_loop
 	move.l	d0,(a0)+		; CWAIT
-	move.w	d3,(a0)+		; BPL3DAT
-	move.w	lg_image_plane_width*2(a1),(a0)+ ; 1st word bitplane 3
-	move.w	d2,(a0)+		; BPL2DAT
-	move.w	lg_image_plane_width*1(a1),(a0)+ ; 1st word bitplane 2
-	move.w	d1,(a0)+		; BPL1DAT
-	move.w	(a1),(a0)+		; 1st word bitplane 1
+	move.l	d3,(a0)+		; BPL3DAT
+	move.l	d2,(a0)+		; BPL2DAT
+	move.l	d1,(a0)+		; BPL1DAT
 	ADDF.W	extra_pf2_plane_width*extra_pf2_depth,a1 ; next line in source
-	cmp.l	d4,d0			; rasterline $ff ?
-	bne.s   cl1_vp2_init_bpldat_skip
+	COP_MOVEQ 0,NOOP
+	cmp.l	d4,d0			; y wrapping ?
+	bne.s	cl1_vp2_init_bpldat_skip
+	subq.w	#LONGWORD_SIZE,a0
 	COP_WAIT CL_X_WRAPPING,CL_Y_WRAPPING ; patch cl
 cl1_vp2_init_bpldat_skip
 	add.l	d5,d0			; next line in cl
@@ -813,6 +868,7 @@ cl1_vp2_set_bitplane_pointers
 	move.l	cl1_display(a3),a0
 	ADDF.W	cl1_extension5_entry+cl1_ext5_BPL1PTH+WORD_SIZE,a0
 	move.l	extra_pf2(a3),d0
+	addq.l	#WORD_SIZE,d0
 	moveq	#extra_pf2_plane_width,d1
 	moveq	#extra_pf2_depth-1,d7
 cl1_vp2_set_bitplane_pointers_loop
@@ -847,23 +903,201 @@ no_sync_routines
 	CNOP 0,4
 beam_routines
 	bsr	wait_copint
-	IFEQ pt_music_fader_enabled
-		bsr.s	pt_mouse_handler
-	ENDC
+	bsr.s	textwriter
+	bsr	tw_display_cursor
+	bsr	cl1_update_bpl1dat
+	bsr	control_counters
 	btst	#CIAB_GAMEPORT0,CIAPRA(a4) ; LMB pressed ?
 	bne.s	beam_routines
 	rts
 
 
-	IFEQ pt_music_fader_enabled
-		CNOP 0,4
-pt_mouse_handler
-		btst	#POTINPB_DATLY,POTINP-DMACONR(a6) ; RMB pressed ?
-		bne.s	pt_no_mouse_handler
-		clr.w	pt_music_fader_active(a3)
-pt_no_mouse_handler
-		rts
-	ENDC
+; Input
+; Result
+	CNOP 0,4
+textwriter
+	move.l	a4,-(a7)
+	tst.w	tw_active(a3)
+	bne.s	textwriter_quit
+	bsr.s	tw_get_new_char_image
+	move.l	d0,a0			; store character image address
+	moveq	#0,d0
+	move.w	tw_text_char_x_position(a3),d0
+	move.w	d0,d3			; store x
+	lsr.w	#3,d0			; byte offset
+	move.w	tw_text_char_y_position(a3),d1
+	move.w	d1,d4			; store y
+	MULUF.W extra_pf2_plane_width*extra_pf2_depth,d1,d2 ; y offset in playfield
+	add.w	d1,d0			; x offset + y offset
+	move.l	extra_pf2(a3),a1
+	add.l	d0,a1			; add playfield address
+	bsr	tw_clear_cursor_data
+	move.w	#extra_pf2_plane_width,a2
+	move.w	#tw_image_plane_width,a4
+	bsr	tw_copy_character_data
+	ADDF.W	tw_text_char_x_size,d3	; next text column
+	cmp.w	#tw_max_x_position,d3
+	ble.s	textwriter_skip
+	ADDF.W	tw_text_char_y_size+1,d4 ; next text line
+	moveq	#0,d3			; reset x in text line
+textwriter_skip
+	move.w	d3,tw_text_char_x_position(a3)
+	move.w	d4,tw_text_char_y_position(a3)
+	move.w	d3,tw_cursor_x_position(a3)
+	move.w	d4,tw_cursor_y_position(a3)
+	move.w	#FALSE,tw_active(a3)
+textwriter_quit
+	move.l	(a7)+,a4
+	rts
+
+
+	GET_NEW_CHAR_IMAGE.W tw,tw_check_control_codes,NORESTART
+
+; Input
+; d0.b	ASCII-Code
+; Result
+; d0.l	Return code
+	CNOP 0,4
+tw_check_control_codes
+	cmp.b	#ASCII_CTRL_M,d0
+	beq.s	tw_carriage_return
+	cmp.b	#ASCII_CTRL_S,d0
+	beq.s	tw_stop_textwriter
+	rts
+	CNOP 0,4
+tw_carriage_return
+	move.w	#tw_delay,tw_delay_counter(a3)
+	bsr.s	tw_clear_cursor
+	moveq	#tw_text_char_y_size+1,d0
+	add.w	d0,tw_text_char_y_position(a3) ; next text line
+	add.w	d0,tw_cursor_y_position(a3)
+	moveq	#0,d0
+	move.w	d0,tw_text_char_x_position(a3) ; reset x
+	move.w	d0,tw_cursor_x_position(a3)
+	moveq	#RETURN_OK,d0
+	rts
+	CNOP 0,4
+tw_stop_textwriter
+	bsr.s	tw_clear_cursor
+	moveq	#FALSE,d0
+	move.w	d0,tw_delay_counter(a3)	; disable counter
+	move.w	d0,tw_cursor_active(a3)
+	moveq	#RETURN_OK,d0
+	rts
+
+
+; Input
+; a0.l		character image
+; a1.l	 bitplane 1
+; a2.l	Plane width
+; a4.l	Plane width character image
+; Result
+	CNOP 0,4
+tw_copy_character_data
+	WAITBLIT
+	moveq	#tw_text_char_y_size-1,d7
+tw_copy_character_data_loop
+	move.w	(a0),(a1)	; copy 16 pixel into bitplane 1
+	add.l	a4,a0		; next line in character
+	add.l	a2,a1		; next line in playfield
+	move.w	(a0),(a1)	; copy 16 pixel into bitplane 2
+	add.l	a4,a0		; next line in character
+	add.l	a2,a1		; next line in playfield
+	add.l	a2,a1		; skip bitplane 3 in playfield
+	dbf	d7,tw_copy_character_data_loop
+	rts
+
+
+; Input
+; Result
+	CNOP 0,4
+tw_clear_cursor
+	moveq	#0,d0
+	move.w	tw_cursor_x_position(a3),d0
+	lsr.w	#3,d0			; byte offset
+	move.w	tw_cursor_y_position(a3),d3
+	MULUF.W extra_pf2_plane_width*extra_pf2_depth,d3,d2 ; y offset in playfield
+	add.w	d3,d0			; x offset + y offset
+	move.l	extra_pf2(a3),a1
+	add.l	d0,a1			; add playfield address
+	bsr.s	tw_clear_cursor_data
+	rts
+
+
+; Input
+; a1.l	 bitplane 1
+; Result
+	CNOP 0,4
+tw_clear_cursor_data
+	WAITBLIT
+	move.l	#BC0F_DEST<<16,BLTCON0-DMACONR(a6) ; minterm clear
+	move.l	a1,BLTDPT-DMACONR(a6)
+	move.w	#extra_pf2_plane_width-tw_text_char_width,BLTDMOD-DMACONR(a6)
+	move.w	#((tw_text_cursor_y_size*tw_text_cursor_depth)<<6)|(tw_text_cursor_x_size/WORD_BITS),BLTSIZE-DMACONR(a6)
+	rts
+
+
+; Input
+; Result
+	CNOP 0,4
+tw_display_cursor
+	tst.w	tw_cursor_active(a3)
+	bne.s	tw_display_cursor_quit
+	moveq	#0,d0
+	move.w	tw_cursor_x_position(a3),d0
+	lsr.w	#3,d0			; byte offset
+	move.w	tw_cursor_y_position(a3),d1
+	MULUF.W extra_pf2_plane_width*extra_pf2_depth,d1,d2 ; y offset in playfield
+	add.w	d1,d0			; x offset + y offset
+	move.l	extra_pf2(a3),a1
+	add.l	d0,a1			; add playfield address
+	WAITBLIT
+	move.l	#(BC0F_DEST|ANBNC|ANBC|ABNC|ABC)<<16,BLTCON0-DMACONR(a6) ; minterm D=A
+	moveq	#-1,d0
+	move.l	d0,BLTAFWM-DMACONR(a6)
+	move.w	#%1111111111111100,BLTADAT-DMACONR(a6)	; cursor bitplane data
+	move.l	a1,BLTDPT-DMACONR(a6)
+	move.w	#extra_pf2_plane_width-tw_text_cursor_width,BLTDMOD-DMACONR(a6)
+	move.w	#((tw_text_cursor_y_size*tw_text_cursor_depth)<<6)|(tw_text_cursor_x_size/WORD_BITS),BLTSIZE-DMACONR(a6)
+tw_display_cursor_quit
+	rts
+
+
+	CNOP 0,4
+cl1_update_bpl1dat
+	MOVEF.L	extra_pf2_plane_width*extra_pf2_depth,d1
+	MOVEF.L cl1_extension6_size,d2
+	move.l	extra_pf2(a3),a0
+	ADDF.W	vp2_pf1_bpl1dat_x_offset/8,a0
+	move.l	cl1_display(a3),a1
+	ADDF.W	cl1_extension6_entry+cl1_ext6_BPL1DAT+WORD_SIZE,a1
+	MOVEF.W (vp2_visible_lines_number/16)-1,d7
+cl1_update_bpl1dat_loop
+	REPT 16
+		move.w	extra_pf2_plane_width*2(a0),cl1_ext6_BPL3DAT-cl1_ext6_BPL1DAT(a1) ; 1st word bitplane 3
+		move.w	extra_pf2_plane_width*1(a0),cl1_ext6_BPL2DAT-cl1_ext6_BPL1DAT(a1) ; 1st word bitplane 2
+		move.w	(a0),(a1)	; 1st word bitplane 1
+		add.l	d1,a0		; next line in playfield
+		add.l	d2,a1		; next line in cl
+	ENDR
+	dbf	d7,cl1_update_bpl1dat_loop
+	rts
+
+
+; Input
+; Result
+	CNOP 0,4
+control_counters
+	move.w	tw_delay_counter(a3),d0
+	bmi.s	control_counters_skip2
+	subq.w	#1,d0
+	bne.s	control_counters_skip1
+	MOVEF.W	tw_delay,d0		; reset counter
+	clr.w	tw_active(a3)
+control_counters_skip1
+	move.w	d0,tw_delay_counter(a3)
+control_counters_skip2
+	rts
 
 
 	INCLUDE "int-autovectors-handlers.i"
@@ -925,7 +1159,9 @@ vp1_pf1_rgb4_color_table
 
 	CNOP 0,2
 vp2_pf1_rgb4_color_table
-	DC.W color00_bits,8,8,8,8,8,8,8
+	DC.W color00_bits,$fff,$081,color00_bits ; text colors
+	DC.W color00_bits,color00_bits,color00_bits
+	DC.W $931			; cursor color
 
 
 ; PT-Replay
@@ -947,6 +1183,17 @@ vp2_pf1_rgb4_color_table
 	INCLUDE "music-tracker/pt-finetune-starts-table.i"
 
 
+; Textwriter
+tw_ascii
+	DC.B "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.!?-'():\/#*@ß$§ "
+tw_ascii_end
+	EVEN
+
+	CNOP 0,2
+tw_chars_offsets
+	DS.W tw_ascii_end-tw_ascii
+
+
 	INCLUDE "sys-variables.i"
 
 
@@ -961,6 +1208,24 @@ vp2_pf1_rgb4_color_table
 	DC.B "4.3 "
 	DC.B "(15.4.25) "
 	DC.B "by Christian Gerbig",0
+	EVEN
+
+
+; Textwriter
+tw_text
+	DC.B ASCII_CTRL_M
+	DC.B "WELCOME TO"
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
+	DC.B "LOWRES PARTY VOLUME 4"
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
+	DC.B "SEE YOU..."
+	DC.B ASCII_CTRL_S
+tw_text_end
 	EVEN
 
 
@@ -983,5 +1248,9 @@ pt_auddata			SECTION pt_audio,DATA_C
 ; Logo
 lg_image_data			SECTION lg_gfx,DATA
 	INCBIN "Lowres4:graphics/352x70x16-Lowres4.rawblit"
+
+; Textwriter
+tw_image_data			SECTION tw_gfx,DATA
+	INCBIN "Lowres4:fonts/16x15x4-Font.rawblit"
 
 	END
