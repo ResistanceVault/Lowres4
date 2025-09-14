@@ -354,6 +354,28 @@ ss_y_distance			EQU 14
 ss_objects_per_sprite_number	EQU ss_reused_sprites_number/ss_used_sprites_number
 ss_objects_number		EQU ss_objects_per_sprite_number*ss_used_sprites_number
 
+; Logo-Fader
+lf_rgb4_start_color		EQU 1
+lf_rgb4_color_table_offset	EQU 1
+lf_rgb4_colors_number		EQU vp1_pf1_colors_number-1
+
+; Logo-Fader-In
+lfi_rgb4_fader_speed		EQU 1
+lfi_delay			EQU 4
+
+; Logo-Fader-Out
+lfo_rgb4_fader_speed		EQU 1
+lfo_delay			EQU 4
+
+; Textwriter-Fader
+tf_rgb4_start_color		EQU 1
+tf_rgb4_color_table_offset	EQU 1
+tf_rgb4_colors_number		EQU vp2_pf1_colors_number-1
+
+; Textwriter-Fader-Out
+tfo_rgb4_fader_speed		EQU 1
+tfo_delay			EQU 2
+
 
 vp1_pf1_plane_x_offset		EQU 16
 vp1_pf1_bpl1dat_x_offset	EQU 0
@@ -770,6 +792,29 @@ ss_x_radius_angle		RS.W 1
 ss_x_angle			RS.W 1
 ss_y_angle			RS.W 1
 
+; Logo-Fader
+lf_rgb4_colors_counter		RS.W 1
+lf_rgb4_copy_colors_active	RS.W 1
+
+; Logo-Fader-In
+lfi_rgb4_active			RS.W 1
+lfi_delay_counter		RS.W 1
+
+; Logo-Fader-Out
+lfo_rgb4_active			RS.W 1
+lfo_delay_counter		RS.W 1
+
+; Textwriter-Fader
+tf_rgb4_colors_counter		RS.W 1
+tf_rgb4_copy_colors_active	RS.W 1
+
+; Textwriter-Fader-Out
+tfo_rgb4_active			RS.W 1
+tfo_delay_counter		RS.W 1
+
+; Main 
+stop_fx_active			RS.W 1
+
 variables_size			RS.B 0
 
 
@@ -791,24 +836,49 @@ init_main_variables
 	ENDC
 
 ; Textwriter
-	moveq	#TRUE,d0
-	move.w	d0,tw_active(a3)
+	moveq	#FALSE,d1
+	move.w	d1,tw_active(a3)
 	lea	tw_image_data,a0
 	move.l	a0,tw_image(a3)
+	moveq	#TRUE,d0
 	move.w	d0,tw_text_table_start(a3)
 	move.w	d0,tw_text_char_x_position(a3)
 	move.w	d0,tw_text_char_y_position(a3)
 
-	move.w	d0,tw_cursor_active(a3)
+	move.w	d1,tw_cursor_active(a3)
 	move.w	d0,tw_cursor_x_position(a3)
 	move.w	d0,tw_cursor_y_position(a3)
 
-	move.w	#1,tw_delay_counter(a3)	; enable counter
+	move.w	d1,tw_delay_counter(a3)	; disable counter
 
 ; Sine-Sprites
 	move.w	#(sine_table_length/4)*WORD_SIZE,ss_x_radius_angle(a3)
 	move.w	#(sine_table_length/4)*WORD_SIZE,ss_x_angle(a3)
 	clr.w	ss_y_angle(a3)
+
+; Logo-Fader
+	move.w	#lf_rgb4_colors_number*3,lf_rgb4_colors_counter(a3)
+	move.w	d0,lf_rgb4_copy_colors_active(a3)
+
+; Logo-Fader-In
+	move.w	d0,lfi_rgb4_active(a3)
+	move.w	#lfi_delay,lfi_delay_counter(a3)
+
+; Logo-Fader-Out
+	moveq	#FALSE,d1
+	move.w	d1,lfo_rgb4_active(a3)
+	move.w	#lfo_delay,lfo_delay_counter(a3)
+
+; Textwriter-Fader
+	move.w	#tf_rgb4_colors_number*3,tf_rgb4_colors_counter(a3)
+	move.w	d1,tf_rgb4_copy_colors_active(a3)
+
+; Textwriter-Fader-Out
+	move.w	d1,tfo_rgb4_active(a3)
+	move.w	#tfo_delay,tfo_delay_counter(a3)
+
+; Main 
+	move.w	d1,stop_fx_active(a3)
 
 	rts
 
@@ -1182,7 +1252,9 @@ beam_routines
 	bsr	wait_copint
 	bsr.s	swap_sprite_structures
 	bsr.s	set_sprite_pointers
-	bsr.s	textwriter
+	bsr	lf_rgb4_copy_color_table
+	bsr	tf_rgb4_copy_color_table
+	bsr	textwriter
 	bsr	tw_display_cursor
 	bsr	cl1_update_bpl1dat
 	bsr	ss_calculate_xy_coordinates
@@ -1190,9 +1262,13 @@ beam_routines
 	bsr	ss_sort_y_coordinates
 	movem.l (a7)+,a4-a6
 	bsr	ss_move_sprites
+	bsr	rgb4_logo_fader_in
+	bsr	rgb4_logo_fader_out
+	bsr	rgb4_textwriter_fader_out
+	bsr	mouse_handler
 	bsr	control_counters
-	btst	#CIAB_GAMEPORT0,CIAPRA(a4) ; LMB pressed ?
-	bne.s	beam_routines
+	tst.w	stop_fx_active(a3)
+	bne	beam_routines
 	rts
 
 
@@ -1513,6 +1589,107 @@ ss_move_sprites_loop2
 	rts
 
 
+	CNOP 0,4
+rgb4_logo_fader_in
+	movem.l a4-a5,-(a7)
+	tst.w	lfi_rgb4_active(a3)
+	bne.s	rgb4_logo_fader_in_quit
+	subq.w	#1,lfi_delay_counter(a3)
+	bne.s	rgb4_logo_fader_in_quit
+	move.w	#lfi_delay,lfi_delay_counter(a3)
+	MOVEF.W lf_rgb4_colors_number*3,d6 ; RGB counter
+	lea	vp1_pf1_rgb4_color_table+(lf_rgb4_color_table_offset*WORD_SIZE)(pc),a0 ; colors buffer
+	lea	lfi_rgb4_color_table+(lf_rgb4_color_table_offset*WORD_SIZE)(pc),a1 ; destination colors
+	move.w	#lfi_rgb4_fader_speed<<8,a2 ; increase/decrease red
+	move.w	#lfi_rgb4_fader_speed<<4,a4 ; increase/decrease green
+	move.w	#lfi_rgb4_fader_speed,a5 ; increase/decrease blue
+	MOVEF.W lf_rgb4_colors_number-1,d7
+	bsr.s	if_rgb4_fader_loop
+	move.w	d6,lf_rgb4_colors_counter(a3) ; fading finished ?
+	bne.s	rgb4_logo_fader_in_quit
+	move.w	#FALSE,lfi_rgb4_active(a3)
+	move.w	#1,tw_delay_counter(a3)	; enable counter
+	clr.w	tw_cursor_active(a3)
+rgb4_logo_fader_in_quit
+	movem.l (a7)+,a4-a5
+	rts
+
+
+	CNOP 0,4
+rgb4_logo_fader_out
+	movem.l a4-a5,-(a7)
+	tst.w	lfo_rgb4_active(a3)
+	bne.s	rgb4_logo_fader_out_quit
+	subq.w	#1,lfo_delay_counter(a3)
+	bne.s	rgb4_logo_fader_out_quit
+	move.w	#lfo_delay,lfo_delay_counter(a3)
+	MOVEF.W lf_rgb4_colors_number*3,d6 ; RGB counter
+	lea	vp1_pf1_rgb4_color_table+(lf_rgb4_color_table_offset*WORD_SIZE)(pc),a0 ; colors buffer
+	lea	lfo_rgb4_color_table+(lf_rgb4_color_table_offset*WORD_SIZE)(pc),a1 ; destination colors
+	move.w	#lfo_rgb4_fader_speed<<8,a2 ; increase/decrease red
+	move.w	#lfo_rgb4_fader_speed<<4,a4 ; increase/decrease green
+	move.w	#lfo_rgb4_fader_speed,a5 ; increase/decrease blue
+	MOVEF.W lf_rgb4_colors_number-1,d7
+	bsr.s	if_rgb4_fader_loop
+	move.w	d6,lf_rgb4_colors_counter(a3) ; fading finished ?
+	bne.s	rgb4_logo_fader_out_quit
+	move.w	#FALSE,lfo_rgb4_active(a3)
+rgb4_logo_fader_out_quit
+	movem.l (a7)+,a4-a5
+	rts
+
+
+	RGB4_COLOR_FADER if
+
+
+	COPY_RGB4_COLORS_TO_COPPERLIST lf,vp1_pf1,cl1,cl1_extension1_entry+cl1_ext1_COLOR00
+
+
+	CNOP 0,4
+rgb4_textwriter_fader_out
+	movem.l a4-a5,-(a7)
+	tst.w	tfo_rgb4_active(a3)
+	bne.s	rgb4_textwriter_fader_out_quit
+	subq.w	#1,tfo_delay_counter(a3)
+	bne.s	rgb4_textwriter_fader_out_quit
+	move.w	#tfo_delay,tfo_delay_counter(a3)
+	MOVEF.W tf_rgb4_colors_number*3,d6 ; RGB counter
+	lea	vp2_pf1_rgb4_color_table+(tf_rgb4_color_table_offset*WORD_SIZE)(pc),a0 ; colors buffer
+	lea	tfo_rgb4_color_table+(tf_rgb4_color_table_offset*WORD_SIZE)(pc),a1 ; destination colors
+	move.w	#tfo_rgb4_fader_speed<<8,a2 ; increase/decrease red
+	move.w	#tfo_rgb4_fader_speed<<4,a4 ; increase/decrease green
+	move.w	#tfo_rgb4_fader_speed,a5 ; increase/decrease blue
+	MOVEF.W tf_rgb4_colors_number-1,d7
+	bsr	if_rgb4_fader_loop
+	move.w	d6,tf_rgb4_colors_counter(a3) ; fading finished ?
+	bne.s	rgb4_textwriter_fader_out_quit
+	move.w	#FALSE,tfo_rgb4_active(a3)
+rgb4_textwriter_fader_out_quit
+	movem.l (a7)+,a4-a5
+	rts
+
+
+	COPY_RGB4_COLORS_TO_COPPERLIST tf,vp2_pf1,cl1,cl1_extension5_entry+cl1_ext5_COLOR00
+
+
+	CNOP 0,4
+mouse_handler
+	btst	#CIAB_GAMEPORT0,CIAPRA(a4) ; LMB pressed ?
+	bne.s	mouse_handler_quit
+	moveq	#TRUE,d0
+	move.w	d0,pt_music_fader_active(a3)
+	move.w	d0,lfo_rgb4_active(a3)
+	tst.w	lfi_rgb4_active(a3)
+	bne.s	mouse_handler_skip
+	move.w	#FALSE,lfi_rgb4_active(a3)
+mouse_handler_skip
+	move.w	d0,lf_rgb4_copy_colors_active(a3)
+	move.w	d0,tfo_rgb4_active(a3)
+	move.w	d0,tf_rgb4_copy_colors_active(a3)
+mouse_handler_quit
+	rts
+
+
 ; Input
 ; Result
 	CNOP 0,4
@@ -1547,7 +1724,7 @@ VERTB_server
 		bsr.s	pt_music_fader
 		bra.s	pt_PlayMusic
 
-		PT_FADE_OUT_VOLUME
+		PT_FADE_OUT_VOLUME stop_fx_active
 
 		CNOP 0,4
 	ENDC
@@ -1584,7 +1761,9 @@ pf1_rgb4_color_table
 
 	CNOP 0,2
 vp1_pf1_rgb4_color_table
-	INCLUDE "Lowres4:colortables/352x70x16-Lowres4.ct"
+	REPT vp1_pf1_colors_number
+		DC.W color00_bits
+	ENDR
 
 	CNOP 0,2
 vp2_pf1_rgb4_color_table
@@ -1737,6 +1916,28 @@ ss_xy_starts
 	CNOP 0,2
 ss_xy_coordinates
 	DS.W ss_objects_number*2
+
+
+; Logo-Fader-In
+	CNOP 0,2
+lfi_rgb4_color_table
+	INCLUDE "Lowres4:colortables/352x70x16-Lowres4.ct"
+
+
+; Logo-Fader-Out
+	CNOP 0,2
+lfo_rgb4_color_table
+	REPT vp1_pf1_colors_number
+		DC.W color00_bits
+	ENDR
+
+
+; Textwriter-Fader-Out
+	CNOP 0,2
+tfo_rgb4_color_table
+	REPT vp2_pf1_colors_number
+		DC.W color00_bits
+	ENDR
 
 
 	INCLUDE "sys-variables.i"
