@@ -276,7 +276,7 @@ vp1_ddfstop_bits		EQU DDFSTOP_OVERSCAN_16_PIXEL
 vp1_bplcon0_bits1		EQU BPLCON0F_COLOR|(extra_pf1_depth*BPLCON0F_BPU0)
 vp1_bplcon0_bits2		EQU BPLCON0F_COLOR
 vp1_bplcon1_bits		EQU 0
-vp1_bplcon2_bits		EQU BPLCON2F_PF1P2 ; sprites in front of playfield 1
+vp1_bplcon2_bits		EQU 0 ; sprites behind playfield 1
 vp1_color00_bits		EQU color00_bits
 
 ; Viewport 2
@@ -285,7 +285,7 @@ vp2_ddfstop_bits		EQU DDFSTOP_OVERSCAN_16_PIXEL
 vp2_bplcon0_bits1		EQU BPLCON0F_COLOR|(extra_pf2_depth*BPLCON0F_BPU0)
 vp2_bplcon0_bits2		EQU BPLCON0F_COLOR
 vp2_bplcon1_bits		EQU 0
-vp2_bplcon2_bits		EQU BPLCON2F_PF1P2 ; sprites in front of playfield 1
+vp2_bplcon2_bits		EQU 0 ; sprites behind playfield 1
 vp2_color00_bits		EQU color00_bits
 
 
@@ -1847,7 +1847,7 @@ pt_effects_handler
 	cmp.b	#$11,d0
 	beq.s	pt_scroll_sprites_bottom_out
 	lsr.b	#4,d0			; 80y
-	cmp.b	#2,D0
+	cmp.b	#2,d0
 	beq.s	pt_select_sprite_movement
 pt_effects_handler_quit
 	rts
@@ -2057,7 +2057,7 @@ ss_movements
 	DC.W 3*WORD_SIZE
 	DC.W 9*WORD_SIZE
 	DC.W 12*WORD_SIZE
-	DC.W 14*WORD_SIZE
+	DC.W 15*WORD_SIZE
 
 
 ; Logo-Fader-In
@@ -2093,8 +2093,8 @@ tfo_rgb4_color_table
 
 	DC.B "$VER: "
 	DC.B "Lowres4Intro "
-	DC.B "1.0 beta "
-	DC.B "(11.9.25) "
+	DC.B "1.1 beta "
+	DC.B "(14.9.25) "
 	DC.B "© 2025 by Resistance",0
 	EVEN
 
