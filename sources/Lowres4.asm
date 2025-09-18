@@ -14,6 +14,9 @@
 ; - only used module fx commands code enabled
 ; - sprites movement synced with music
 
+; V.1.2 beta
+; - bugfix: colours counter now reset before logo is faded out
+
 
 ; 8xy command
 ; 810	scroll sprites bottom in
@@ -1778,6 +1781,7 @@ mouse_handler
 	bne.s	mouse_handler_skip
 	move.w	#FALSE,lfi_rgb4_active(a3)
 mouse_handler_skip
+	move.w	#lf_rgb4_colors_number*3,lf_rgb4_colors_counter(a3)
 	move.w	d0,lf_rgb4_copy_colors_active(a3)
 	move.w	d0,tfo_rgb4_active(a3)
 	move.w	d0,tf_rgb4_copy_colors_active(a3)
