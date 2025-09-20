@@ -16,6 +16,7 @@
 
 ; V.1.2 beta
 ; - bugfix: colours counter now reset before logo is faded out
+; - bugfix: wrong 8 fx command in module was not triggering a different speed
 
 
 ; 8xy command
@@ -2097,8 +2098,8 @@ tfo_rgb4_color_table
 
 	DC.B "$VER: "
 	DC.B "Lowres4Intro "
-	DC.B "1.1 beta "
-	DC.B "(14.9.25) "
+	DC.B "1.2 beta "
+	DC.B "(20.9.25) "
 	DC.B "© 2025 by Resistance",0
 	EVEN
 
