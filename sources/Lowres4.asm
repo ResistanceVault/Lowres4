@@ -1152,7 +1152,7 @@ cl1_vp1_init_bpldat_loop
 	move.w	d1,(a0)+		; BPL1DAT
 	move.w	(a1),(a0)+		; 1st word bitplane 1
 	ADDF.W	lg_image_plane_width*lg_image_depth,a1 ; next line in source
-	add.l	d5,d0			; next line in cl
+	add.l	d5,d0			; next line
 	dbf	d7,cl1_vp1_init_bpldat_loop
 	rts
 
@@ -1172,7 +1172,7 @@ cl1_vb_init_bpldat
 	MOVEF.W vb_lines_number-1,d7
 cl1_vb_init_bpldat_loop
 	move.l	d0,(a0)+		; CWAIT
-	add.l	d2,d0			; next line in cl
+	add.l	d2,d0			; next line
 	move.l	d1,(a0)+		; BPL1DAT
 	dbf	d7,cl1_vb_init_bpldat_loop
 	rts
@@ -1226,7 +1226,7 @@ cl1_vp2_init_bpldat_loop
 	subq.w	#LONGWORD_SIZE,a0
 	COP_WAIT CL_X_WRAPPING,CL_Y_WRAPPING ; patch cl
 cl1_vp2_init_bpldat_skip
-	add.l	d5,d0			; next line in cl
+	add.l	d5,d0			; next line
 	dbf	d7,cl1_vp2_init_bpldat_loop
 	rts
 
@@ -1462,7 +1462,7 @@ tw_display_cursor
 	move.l	extra_pf2(a3),a1
 	add.l	d0,a1			; add playfield address
 	WAITBLIT
-	move.l	#(BC0F_DEST|ANBNC|ANBC|ABNC|ABC)<<16,BLTCON0-DMACONR(a6) ; minterm D=A
+	move.l	#(BC0F_DEST|ANBNC|ANBC|ABNC|ABC)<<16,BLTCON0-DMACONR(a6) ; minterm D = A
 	moveq	#-1,d0
 	move.l	d0,BLTAFWM-DMACONR(a6)
 	move.w	#%1111111111111100,BLTADAT-DMACONR(a6)	; cursor bitplane data
@@ -1489,7 +1489,7 @@ cl1_update_bpl1dat_loop
 		move.w	(a0),(a1)	; 1st word bitplane 1
 		add.l	d1,a0		; next line in playfield
 		move.w	(extra_pf2_plane_width*1)-(extra_pf2_plane_width*extra_pf2_depth)(a0),cl1_ext6_BPL2DAT-cl1_ext6_BPL1DAT(a1) ; 1st word bitplane 2
-		add.l	d2,a1		; next line in cl
+		add.l	d2,a1		; next line
 	ENDR
 	dbf	d7,cl1_update_bpl1dat_loop
 	rts
