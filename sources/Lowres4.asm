@@ -30,6 +30,9 @@
 ; - Cursor color changed
 ; - Optic's hearts included
 
+; V.1.5 beta
+; - background colour changed to dark blue
+
 
 ; 8xy command
 ; 810	scroll sprites bottom in
@@ -284,7 +287,7 @@ vp2_pf1_plane_moduli		EQU (extra_pf2_plane_width*(extra_pf2_depth-1))+extra_pf2_
 diwstrt_bits			EQU ((display_window_vstart&$ff)*DIWSTRTF_V0)|(display_window_hstart&$ff)
 diwstop_bits			EQU ((display_window_vstop&$ff)*DIWSTOPF_V0)|(display_window_hstop&$ff)
 bplcon0_bits			EQU BPLCON0F_COLOR|(pf_depth*BPLCON0F_BPU0)
-color00_bits			EQU $201
+color00_bits			EQU $102
 
 ; Viewport 1
 vp1_ddfstrt_bits		EQU DDFSTRT_320_PIXEL
@@ -2110,8 +2113,8 @@ tfo_rgb4_color_table
 
 	DC.B "$VER: "
 	DC.B "Lowres4Intro "
-	DC.B "1.4 beta "
-	DC.B "(8.11.25) "
+	DC.B "1.5 beta "
+	DC.B "(7.12.25) "
 	DC.B "© 2025 by Resistance",0
 	EVEN
 
