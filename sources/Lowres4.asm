@@ -38,6 +38,10 @@
 ; - Code optimized for 68000
 ; - Sprites have now priority over playfield1 in viewport1
 
+; V.1.7 beta
+; - Image blind scroll speed slowed down
+; - Copperlist1 branch improved
+
 
 ; 8xy command
 ; 810	scroll sprites bottom in
@@ -399,7 +403,7 @@ ibs_lamella_center		EQU ((ibs_lamella_height_max-ibs_lamella_height_min)/2)+ibs_
 ibs_lamella_angle_speed		EQU 4
 ibs_lamella_angle_step		EQU 4
 ibs_step1			EQU 1
-ibs_step2			EQU 3
+ibs_step2			EQU 4
 ibs_speed			EQU 1
 
 ; Logo-Fader
@@ -2350,7 +2354,7 @@ tfo_rgb4_color_table
 
 	DC.B "$VER: "
 	DC.B "Lowres4Intro "
-	DC.B "1.6 beta "
+	DC.B "1.7 beta "
 	DC.B "(3.1.26) "
 	DC.B "© 2026 by Resistance",0
 	EVEN
