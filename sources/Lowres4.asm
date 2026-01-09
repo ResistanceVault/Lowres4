@@ -54,6 +54,8 @@
 ; - Typewriter text restart
 ; - Clear delay increased to 8 seconds
 ; - Backspace delay increased to 3 frames
+; - Seperator bar added
+; - Bar fader added
 
 
 ; 8xy command
@@ -62,7 +64,7 @@
 ; 82y	select sprite movement [0..3]
 
 
-; Execution time 68000: 310 rasterlines
+; Execution time 68000: 312 rasterlines
 
 
 	MC68000
@@ -262,11 +264,12 @@ vp1_pf1_colors_number		EQU 16
 vp1_pf_colors_number		EQU vp1_pf1_colors_number
 
 ; Vertical Blank
-vb_lines_number			EQU 10
-
+vb_lines_number			EQU 12
 vb_hstart			EQU 0
 vb_vstart			EQU vp1_vstop
 vb_vstop			EQU vb_vstart+vb_lines_number
+
+vb_bar_height			EQU 6
 
 ; Viewport 2
 vp2_pixel_per_line		EQU 336
@@ -332,18 +335,21 @@ vp2_color00_bits		EQU color00_bits
 ; Viewport 1
 cl1_hstart1			EQU display_window_hstop
 cl1_vstart1			EQU vp1_vstart-1
-
 ; Vertical-Blank
-cl1_hstart2			EQU display_window_hstart-(1*CMOVE_SLOT_PERIOD)
+cl1_hstart2			EQU 0
 cl1_vstart2			EQU vb_vstart
-
+cl1_hstart3			EQU 12
+cl1_vstart3			EQU vb_vstart
+cl1_hstart4			EQU display_window_hstart-(1*CMOVE_SLOT_PERIOD)
+cl1_vstart4			EQU vb_vstart
 ; Viewport 2
-cl1_hstart3			EQU (vp2_ddfstrt_bits*2)-(extra_pf2_depth*CMOVE_SLOT_PERIOD)
-cl1_vstart3			EQU vp2_vstart
-
+cl1_hstart5			EQU 0
+cl1_vstart5			EQU vp2_vstart
+cl1_hstart6			EQU (vp2_ddfstrt_bits*2)-(extra_pf2_depth*CMOVE_SLOT_PERIOD)
+cl1_vstart6			EQU vp2_vstart
 ; Copper Interrupt
-cl1_hstart4			EQU 0
-cl1_vstart4			EQU beam_position&CL_Y_WRAPPING
+cl1_hstart7			EQU 0
+cl1_vstart7			EQU beam_position&CL_Y_WRAPPING
 
 cl2_display_x_size		EQU 0
 cl2_display_width		EQU cl2_display_x_size/8
@@ -437,6 +443,18 @@ lfi_delay			EQU 4
 lfo_rgb4_fader_speed		EQU 1
 lfo_delay			EQU 4
 
+; Bar-Fader 
+bf_rgb4_color_table_offset	EQU 0
+bf_rgb4_colors_number		EQU vb_bar_height
+
+; Bar-Fader-In 
+bfi_rgb4_fader_speed		EQU 1
+bfi_delay			EQU 3
+
+; Bar-Fader-Out 
+bfo_rgb4_fader_speed		EQU 1
+bfo_delay			EQU 4
+
 ; Textwriter-Fader
 tf_rgb4_start_color		EQU 1
 tf_rgb4_color_table_offset	EQU 1
@@ -481,7 +499,7 @@ vp2_pf1_bpl1dat_x_offset	EQU 0
 
 	RSRESET
 
-cl1_extension1			RS.B 0
+cl1_ext5nsion1			RS.B 0
 
 cl1_ext1_DDFSTRT		RS.L 1
 cl1_ext1_DDFSTOP		RS.L 1
@@ -524,10 +542,22 @@ cl1_extension1_size		RS.B 0
 
 	RSRESET
 
+cl1_extension2			RS.B 0
+
+cl1_ext2_WAIT			RS.L 1
+cl1_ext2_BPLCON0		RS.L 1
+
+cl1_extension2_size		RS.B 0
+
+
+	RSRESET
+
 cl1_extension3			RS.B 0
 
-cl1_ext3_WAIT			RS.L 1
-cl1_ext3_BPLCON0		RS.L 1
+cl1_ext3_WAIT1			RS.L 1
+cl1_ext3_COLOR00		RS.L 1
+cl1_ext3_WAIT2			RS.L 1
+cl1_ext3_BPL1DAT		RS.L 1
 
 cl1_extension3_size		RS.B 0
 
@@ -536,8 +566,28 @@ cl1_extension3_size		RS.B 0
 
 cl1_extension4			RS.B 0
 
+cl1_ext4_DDFSTRT		RS.L 1
+cl1_ext4_DDFSTOP		RS.L 1
+cl1_ext4_BPLCON1		RS.L 1
+cl1_ext4_BPLCON2		RS.L 1
+cl1_ext4_BPL1MOD		RS.L 1
+cl1_ext4_BPL2MOD		RS.L 1
+cl1_ext4_COLOR00		RS.L 1
+cl1_ext4_COLOR01		RS.L 1
+cl1_ext4_COLOR02		RS.L 1
+cl1_ext4_COLOR03		RS.L 1
+cl1_ext4_COLOR04		RS.L 1
+cl1_ext4_COLOR05		RS.L 1
+cl1_ext4_COLOR06		RS.L 1
+cl1_ext4_COLOR07		RS.L 1
+cl1_ext4_BPL1PTH		RS.L 1
+cl1_ext4_BPL1PTL		RS.L 1
+cl1_ext4_BPL2PTH		RS.L 1
+cl1_ext4_BPL2PTL		RS.L 1
+cl1_ext4_BPL3PTH		RS.L 1
+cl1_ext4_BPL3PTL		RS.L 1
 cl1_ext4_WAIT			RS.L 1
-cl1_ext4_BPL1DAT		RS.L 1
+cl1_ext4_BPLCON0		RS.L 1
 
 cl1_extension4_size		RS.B 0
 
@@ -546,43 +596,13 @@ cl1_extension4_size		RS.B 0
 
 cl1_extension5			RS.B 0
 
-cl1_ext5_DDFSTRT		RS.L 1
-cl1_ext5_DDFSTOP		RS.L 1
-cl1_ext5_BPLCON1		RS.L 1
-cl1_ext5_BPLCON2		RS.L 1
-cl1_ext5_BPL1MOD		RS.L 1
-cl1_ext5_BPL2MOD		RS.L 1
-cl1_ext5_COLOR00		RS.L 1
-cl1_ext5_COLOR01		RS.L 1
-cl1_ext5_COLOR02		RS.L 1
-cl1_ext5_COLOR03		RS.L 1
-cl1_ext5_COLOR04		RS.L 1
-cl1_ext5_COLOR05		RS.L 1
-cl1_ext5_COLOR06		RS.L 1
-cl1_ext5_COLOR07		RS.L 1
-cl1_ext5_BPL1PTH		RS.L 1
-cl1_ext5_BPL1PTL		RS.L 1
-cl1_ext5_BPL2PTH		RS.L 1
-cl1_ext5_BPL2PTL		RS.L 1
-cl1_ext5_BPL3PTH		RS.L 1
-cl1_ext5_BPL3PTL		RS.L 1
 cl1_ext5_WAIT			RS.L 1
-cl1_ext5_BPLCON0		RS.L 1
+cl1_ext5_BPL3DAT		RS.L 1
+cl1_ext5_BPL2DAT		RS.L 1
+cl1_ext5_BPL1DAT		RS.L 1
+cl1_ext5_NOOP			RS.L 1
 
 cl1_extension5_size		RS.B 0
-
-
-	RSRESET
-
-cl1_extension6			RS.B 0
-
-cl1_ext6_WAIT			RS.L 1
-cl1_ext6_BPL3DAT		RS.L 1
-cl1_ext6_BPL2DAT		RS.L 1
-cl1_ext6_BPL1DAT		RS.L 1
-cl1_ext6_NOOP			RS.L 1
-
-cl1_extension6_size		RS.B 0
 
 
 	RSRESET
@@ -594,11 +614,11 @@ cl1_begin			RS.B 0
 ; Viewport 1
 cl1_extension1_entry		RS.B cl1_extension1_size
 ; Vertical Blank
-cl1_extension3_entry		RS.B cl1_extension3_size
-cl1_extension4_entry		RS.B cl1_extension4_size*vb_lines_number
+cl1_extension2_entry		RS.B cl1_extension2_size
+cl1_extension3_entry		RS.B cl1_extension3_size*vb_lines_number
 ; Viewport 2
-cl1_extension5_entry		RS.B cl1_extension5_size
-cl1_extension6_entry		RS.B cl1_extension6_size*vp2_visible_lines_number
+cl1_extension4_entry		RS.B cl1_extension4_size
+cl1_extension5_entry		RS.B cl1_extension5_size*vp2_visible_lines_number
 ; Copper Interrupt
 cl1_WAIT			RS.L 1
 cl1_INTREQ			RS.L 1
@@ -917,6 +937,18 @@ lfi_delay_counter		RS.W 1
 lfo_rgb4_active			RS.W 1
 lfo_delay_counter		RS.W 1
 
+; Bar-Fader 
+bf_rgb4_colors_counter		RS.W 1
+bf_rgb4_copy_colors_active	RS.W 1
+
+; Bar-Fader-In 
+bfi_rgb4_active			RS.W 1
+bfi_delay_counter		RS.W 1
+
+; Bar-Fader-Out 
+bfo_rgb4_active			RS.W 1
+bfo_delay_counter		RS.W 1
+
 ; Textwriter-Fader
 tf_rgb4_colors_counter		RS.W 1
 tf_rgb4_copy_colors_active	RS.W 1
@@ -1001,6 +1033,18 @@ init_main_variables
 	moveq	#FALSE,d1
 	move.w	d1,lfo_rgb4_active(a3)
 	move.w	#lfo_delay,lfo_delay_counter(a3)
+
+; Bar-Fader 
+	move.w	#bf_rgb4_colors_number*3,bf_rgb4_colors_counter(a3)
+	move.w	d0,bf_rgb4_copy_colors_active(a3)
+
+; Bar-Fader-In 
+	move.w	d0,bfi_rgb4_active(a3)
+	move.w	#bfi_delay,bfi_delay_counter(a3)
+
+; Bar-Fader-Out 
+	move.w	d1,bfo_rgb4_active(a3)
+	move.w	#bfo_delay,bfo_delay_counter(a3)
 
 ; Textwriter-Fader
 	move.w	#tf_rgb4_colors_number*3,tf_rgb4_colors_counter(a3)
@@ -1235,7 +1279,7 @@ cl1_vp1_init_bitplane_pointers_loop
 	CNOP 0,4
 cl1_vp1_init_branch
 	move.l	cl1_display(a3),d0
-	add.l	#cl1_extension3_entry,d0
+	add.l	#cl1_extension2_entry,d0
 	swap	d0
 	move.w	#COP1LCH,(a0)+
 	move.w	d0,(a0)+
@@ -1256,20 +1300,25 @@ cl1_vp1_start_display
 ; Vertical Blank
 	CNOP 0,4
 cl1_vb_start_blank
-	COP_WAIT 0,cl1_vstart2
+	COP_WAIT cl1_hstart2,cl1_vstart2
 	COP_MOVEQ vp1_bplcon0_bits2,BPLCON0
 	rts
 
 	CNOP 0,4
 cl1_vb_init_bpldat
-	move.l	#(((cl1_VSTART2<<24)|(((cl1_HSTART2/4)*2)<<16))|$10000)|$fffe,d0 ; CWAIT
-	move.l	#BPL1DAT<<16,d1
-	move.l	#1<<24,d2		; next line
+	move.l	#(((cl1_VSTART3<<24)|(((cl1_HSTART3/4)*2)<<16))|$10000)|$fffe,d0 ; CWAIT
+	move.l	#(((cl1_VSTART4<<24)|(((cl1_HSTART4/4)*2)<<16))|$10000)|$fffe,d1 ; CWAIT
+	move.l	#(COLOR00<<16)|color00_bits,d2
+	move.l	#BPL1DAT<<16,d3
+	move.l	#1<<24,d4		; next line
 	MOVEF.W vb_lines_number-1,d7
 cl1_vb_init_bpldat_loop
 	move.l	d0,(a0)+		; CWAIT
-	add.l	d2,d0			; next line
-	move.l	d1,(a0)+		; BPL1DAT
+	add.l	d4,d0			; next line
+	move.l	d2,(a0)+		; COLOR00
+	move.l	d1,(a0)+		; CWAIT
+	add.l	d4,d1			; next line
+	move.l	d3,(a0)+		; BPL1DAT
 	dbf	d7,cl1_vb_init_bpldat_loop
 	rts
 
@@ -1295,7 +1344,7 @@ cl1_vp2_init_bitplane_pointers_loop
 
 	CNOP 0,4
 cl1_vp2_start_display
-	COP_WAIT cl1_hstart3,cl1_vstart3
+	COP_WAIT cl1_hstart5,cl1_vstart5
 	COP_MOVEQ vp2_bplcon0_bits1,BPLCON0
 	rts
 
@@ -1303,11 +1352,11 @@ cl1_vp2_start_display
 cl1_vp2_init_bpldat
 	move.l	extra_pf2(a3),a1
 	ADDF.W	vp2_pf1_BPL1DAT_x_offset/8,a1 ; bitplane 1
-	move.l	#(((cl1_vstart3<<24)|(((cl1_hstart3/4)*2)<<16))|$10000)|$fffe,d0 ; CWAIT
+	move.l	#(((cl1_vstart6<<24)|(((cl1_hstart6/4)*2)<<16))|$10000)|$fffe,d0 ; CWAIT
 	move.l	#BPL1DAT<<16,d1
 	move.l	#BPL2DAT<<16,d2
 	move.l	#BPL3DAT<<16,d3
-	move.l	#(((CL_Y_WRAPPING<<24)|(((cl1_hstart3/4)*2)<<16))|$10000)|$fffe,d4 ; CWAIT
+	move.l	#(((CL_Y_WRAPPING<<24)|(((cl1_hstart6/4)*2)<<16))|$10000)|$fffe,d4 ; CWAIT
 	move.l	#1<<24,d5
 	MOVEF.W vp2_visible_lines_number-1,d7
 cl1_vp2_init_bpldat_loop
@@ -1327,7 +1376,7 @@ cl1_vp2_init_bpldat_skip
 	rts
 
 
-	COP_INIT_COPINT cl1,cl1_hstart4,cl1_vstart4
+	COP_INIT_COPINT cl1,cl1_hstart7,cl1_vstart7
 
 
 	CNOP 0,4
@@ -1363,7 +1412,7 @@ cl1_vp1_set_bitplane_pointers_loop
 	CNOP 0,4
 cl1_vp2_set_bitplane_pointers
 	move.l	cl1_display(a3),a0
-	ADDF.W	cl1_extension5_entry+cl1_ext5_BPL1PTH+WORD_SIZE,a0
+	ADDF.W	cl1_extension4_entry+cl1_ext4_BPL1PTH+WORD_SIZE,a0
 	move.l	extra_pf2(a3),d0
 	addq.l	#WORD_SIZE,d0
 	moveq	#extra_pf2_plane_width,d1
@@ -1435,6 +1484,7 @@ beam_routines
 	bsr	set_sprite_pointers
 	bsr	lf_rgb4_copy_color_table
 	bsr	tf_rgb4_copy_color_table
+	bsr	bf_rgb4_copy_color_table
 	bsr	textwriter
 	bsr	clear_text
 	bsr	tw_display_cursor
@@ -1448,6 +1498,8 @@ beam_routines
 	bsr	rgb4_logo_fader_in
 	bsr	rgb4_logo_fader_out
 	bsr	rgb4_textwriter_fader_out
+	bsr	rgb4_bar_fader_in
+	bsr	rgb4_bar_fader_out
 	bsr	scroll_sprites_bottom_in
 	bsr	scroll_sprites_bottom_out
 	bsr	mouse_handler
@@ -1539,7 +1591,7 @@ tw_stop_textwriter
 	moveq	#FALSE,d0
 	move.w	d0,tw_delay_counter(a3)	; disable counter
 	move.w	d0,tw_cursor_active(a3)
- 	move.w	#ct_delay,ct_delay_counter(a3) ; start delay counter
+ 	move.w	#ct_delay,ct_delay_counter(a3) ; start counter
 	moveq	#RETURN_OK,d0
 	rts
 
@@ -1670,16 +1722,16 @@ clear_text_quit
 cl1_update_bpl1dat
 	WAITBLIT
 	MOVEF.L	extra_pf2_plane_width*extra_pf2_depth,d1
-	MOVEF.L cl1_extension6_size,d2
+	MOVEF.L cl1_extension5_size,d2
 	move.l	extra_pf2(a3),a0
 	ADDF.W	vp2_pf1_bpl1dat_x_offset/8,a0
 	move.l	cl1_display(a3),a1
-	ADDF.W	cl1_extension6_entry+cl1_ext6_BPL1DAT+WORD_SIZE,a1
+	ADDF.W	cl1_extension5_entry+cl1_ext5_BPL1DAT+WORD_SIZE,a1
 	REPT vp2_visible_lines_number
-	move.w	extra_pf2_plane_width*2(a0),cl1_ext6_BPL3DAT-cl1_ext6_BPL1DAT(a1) ; 1st word bitplane 3
+	move.w	extra_pf2_plane_width*2(a0),cl1_ext5_BPL3DAT-cl1_ext5_BPL1DAT(a1) ; 1st word bitplane 3
 	move.w	(a0),(a1)		; 1st word bitplane 1
 	add.l	d1,a0			; next line in playfield
-	move.w	(extra_pf2_plane_width*1)-(extra_pf2_plane_width*extra_pf2_depth)(a0),cl1_ext6_BPL2DAT-cl1_ext6_BPL1DAT(a1) ; 1st word bitplane 2
+	move.w	(extra_pf2_plane_width*1)-(extra_pf2_plane_width*extra_pf2_depth)(a0),cl1_ext5_BPL2DAT-cl1_ext5_BPL1DAT(a1) ; 1st word bitplane 2
 	add.l	d2,a1			; next line
 	ENDR
 	rts
@@ -2019,6 +2071,74 @@ rgb4_logo_fader_out_quit
 
 
 	CNOP 0,4
+rgb4_bar_fader_in
+	movem.l a4-a6,-(a7)
+	tst.w	bfi_rgb4_active(a3)
+	bne.s	rgb4_bar_fader_in_quit
+	subq.w	#1,bfi_delay_counter(a3)
+	bne.s	rgb4_bar_fader_in_quit
+	move.w	#bfi_delay,bfi_delay_counter(a3)
+	MOVEF.W bf_rgb4_colors_number*3,d6 ; RGB counter
+	lea	bf_rgb4_color_cache+(bf_rgb4_color_table_offset*WORD_SIZE)(pc),a0 ; colors buffer
+	lea	bfi_rgb4_color_table+(bf_rgb4_color_table_offset*WORD_SIZE)(pc),a1 ; destination colors
+	move.w	#bfi_rgb4_fader_speed<<8,a2 ; increase/decrease red
+	move.w	#bfi_rgb4_fader_speed<<4,a4 ; increase/decrease green
+	move.w	#bfi_rgb4_fader_speed,a5 ; increase/decrease blue
+	MOVEF.W bf_rgb4_colors_number-1,d7
+	bsr	if_rgb4_fader_loop
+	move.w	d6,bf_rgb4_colors_counter(a3) ; fader finished ?
+	bne.s	rgb4_bar_fader_in_quit
+	move.w	#FALSE,bfi_rgb4_active(a3)
+rgb4_bar_fader_in_quit
+	movem.l (a7)+,a4-a6
+	rts
+
+
+	CNOP 0,4
+rgb4_bar_fader_out
+	movem.l a4-a6,-(a7)
+	tst.w	bfo_rgb4_active(a3)
+	bne.s	rgb4_bar_fader_out_quit
+	subq.w	#1,bfo_delay_counter(a3)
+	bne.s	rgb4_bar_fader_out_quit
+	move.w	#bfo_delay,bfo_delay_counter(a3)
+	MOVEF.W bf_rgb4_colors_number*3,d6 ; RGB counter
+	lea	bf_rgb4_color_cache+(bf_rgb4_color_table_offset*WORD_SIZE)(pc),a0 ; colors buffer
+	lea	bfo_rgb4_color_table+(bf_rgb4_color_table_offset*WORD_SIZE)(pc),a1 ; destination colors
+	move.w	#bfo_rgb4_fader_speed<<8,a2 ; increase/decrease red
+	move.w	#bfo_rgb4_fader_speed<<4,a4 ; increase/decrease green
+	move.w	#bfo_rgb4_fader_speed,a5 ; increase/decrease blue
+	MOVEF.W bf_rgb4_colors_number-1,d7
+	bsr	if_rgb4_fader_loop
+	move.w	d6,bf_rgb4_colors_counter(a3) ; fader finished ?
+	bne.s	rgb4_bar_fader_out_quit
+	move.w	#FALSE,bfo_rgb4_active(a3)
+rgb4_bar_fader_out_quit
+	movem.l (a7)+,a4-a6
+	rts
+
+
+	CNOP 0,4
+bf_rgb4_copy_color_table
+	tst.w	bf_rgb4_copy_colors_active(a3)
+	bne.s	bf_rgb4_copy_color_table_quit
+	lea	bf_rgb4_color_cache(pc),a0 ; source: colors buffer
+	move.l	cl1_display(a3),a1	; destination: cl
+	ADDF.W	cl1_extension3_entry+cl1_ext3_COLOR00+WORD_SIZE,a1
+	move.w	#cl1_extension3_size,a2
+	MOVEF.W bf_rgb4_colors_number-1,d7
+bf_rgb4_copy_color_table_loop
+	move.w	(a0)+,(a1)		; copy RGB4 value
+	add.l	a2,a1			; next section
+	dbf	d7,bf_rgb4_copy_color_table_loop
+	tst.w	bf_rgb4_colors_counter(a3)
+	bne.s	bf_rgb4_copy_color_table_quit
+	move.w	#FALSE,bf_rgb4_copy_colors_active(a3)
+bf_rgb4_copy_color_table_quit
+	rts
+
+
+	CNOP 0,4
 rgb4_textwriter_fader_out
 	movem.l a4-a5,-(a7)
 	tst.w	tfo_rgb4_active(a3)
@@ -2042,7 +2162,7 @@ rgb4_textwriter_fader_out_quit
 	rts
 
 
-	COPY_RGB4_COLORS_TO_COPPERLIST tf,vp2_pf1,cl1,cl1_extension5_entry+cl1_ext5_COLOR00
+	COPY_RGB4_COLORS_TO_COPPERLIST tf,vp2_pf1,cl1,cl1_extension4_entry+cl1_ext4_COLOR00
 
 
 	CNOP 0,4
@@ -2104,17 +2224,26 @@ scroll_sprites_bottom_out_quit
 mouse_handler
 	btst	#CIAB_GAMEPORT0,CIAPRA(a4) ; LMB pressed ?
 	bne.s	mouse_handler_quit
+; Module-Fader
 	moveq	#TRUE,d0
 	move.w	d0,pt_music_fader_active(a3)
+; Logo-Fader
 	move.w	d0,lfo_rgb4_active(a3)
 	tst.w	lfi_rgb4_active(a3)
 	bne.s	mouse_handler_skip
 	move.w	#FALSE,lfi_rgb4_active(a3)
 mouse_handler_skip
-	move.w	#lf_rgb4_colors_number*3,lf_rgb4_colors_counter(a3)
 	move.w	d0,lf_rgb4_copy_colors_active(a3)
+	move.w	#lf_rgb4_colors_number*3,lf_rgb4_colors_counter(a3)
+; Typewriter-Fader
 	move.w	d0,tfo_rgb4_active(a3)
 	move.w	d0,tf_rgb4_copy_colors_active(a3)
+	move.w	#tf_rgb4_colors_number*3,tf_rgb4_colors_counter(a3)
+; Bar-Fader
+	move.w	d0,bfo_rgb4_active(a3)
+	move.w	d0,bf_rgb4_copy_colors_active(a3)
+	move.w	#bf_rgb4_colors_number*3,bf_rgb4_colors_counter(a3)
+; Scroll-Sprites-Bottom
 	move.w	ssbo_y_angle(a3),d1
 	tst.w	ss_sprites_visible(a3)
 	bne.s	mouse_handler_quit
@@ -2137,7 +2266,7 @@ control_counters
 control_counters_skip1
 	move.w	d0,tw_delay_counter(a3)
 control_counters_skip2
-
+; Clear-Text
 	move.w	ct_delay_counter(a3),d0
 	bmi.s	control_counters_skip4
 	subq.w	#1,d0
@@ -2147,12 +2276,12 @@ control_counters_skip2
 control_counters_skip3
 	move.w	d0,ct_delay_counter(a3)
 control_counters_skip4
-
+; Backspace
 	move.w	ct_backspace_delay_counter(a3),d0
 	bmi.s	control_counters_skip6
 	subq.w	#1,d0
 	bne.s	control_counters_skip5
-	MOVEF.W	ct_backspace_delay,d0	; reset counter
+	MOVEF.W	ct_backspace_delay,d0	; continuous counter
 	clr.w	ct_backspace_active(a3)
 control_counters_skip5
 	move.w	d0,ct_backspace_delay_counter(a3)
@@ -2439,6 +2568,24 @@ lfo_rgb4_color_table
 	ENDR
 
 
+; Bar-Fader 
+	CNOP 0,2
+bfi_rgb4_color_table
+	INCLUDE "Lowres4:colortables/6-Colorgradient.ct"
+
+	CNOP 0,2
+bfo_rgb4_color_table
+	REPT vb_bar_height
+	DC.W color00_bits
+	ENDR
+
+	CNOP 0,2
+bf_rgb4_color_cache
+	REPT vb_bar_height
+	DC.W color00_bits
+	ENDR
+
+
 ; Textwriter-Fader-Out
 	CNOP 0,2
 tfo_rgb4_color_table
@@ -2458,8 +2605,8 @@ tfo_rgb4_color_table
 
 	DC.B "$VER: "
 	DC.B "Lowres4Intro "
-	DC.B "1.9 beta "
-	DC.B "(3.1.26) "
+	DC.B "2.0 beta "
+	DC.B "(9.1.26) "
 	DC.B "© 2026 by Resistance",0
 	EVEN
 
@@ -2469,15 +2616,16 @@ tw_text
 ; Page 1
 	DC.B ASCII_CTRL_M," "
 	DC.B ASCII_CTRL_M," "
+	DC.B "WELCOME #"
 	DC.B ASCII_CTRL_M," "
-	DC.B "WELCOME - AND ENJOY"
+	DC.B ASCII_CTRL_M," "
+	DC.B "AND ENJOY"
 	DC.B ASCII_CTRL_M," "
 	DC.B ASCII_CTRL_M," "
 	DC.B "THE LOW RESOLUTION."
 	DC.B ASCII_CTRL_S," "
 
 ; Page 2
-	DC.B ASCII_CTRL_M," "
 	DC.B ASCII_CTRL_M," "
 	DC.B ASCII_CTRL_M," "
 	DC.B "INSERT DISK."
@@ -2490,7 +2638,6 @@ tw_text
 	DC.B ASCII_CTRL_S," "
 
 ; Page 3
-	DC.B ASCII_CTRL_M," "
 	DC.B ASCII_CTRL_M," "
 	DC.B ASCII_CTRL_M," "
 	DC.B "RETRO COMPUTERS."
