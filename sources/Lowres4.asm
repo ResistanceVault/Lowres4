@@ -63,6 +63,8 @@
 ;   screen. BPL1DAT also opened the display window > $12b. vp2 visible lines
 ;   decreased by 1 for all bplxdat functions.
 ;   Last BPL1DAT write at $12b by CMOVE
+; - Enabling of fader out routines improved at quit. Fader in routines are
+;   forced to stop
 
 
 ; 8xy command
@@ -2233,10 +2235,10 @@ mouse_handler
 	move.w	d0,pt_music_fader_active(a3)
 ; Logo-Fader
 	move.w	d0,lfo_rgb4_active(a3)
-	tst.w	lfi_rgb4_active(a3)
-	bne.s	mouse_handler_skip
-	move.w	#FALSE,lfi_rgb4_active(a3)
-mouse_handler_skip
+	tst.w	lfi_rgb4_active(a3)	; fader in still active ?
+	bne.s	mouse_handler_skip1
+	move.w	#FALSE,lfi_rgb4_active(a3) ; force stop
+mouse_handler_skip1
 	move.w	d0,lf_rgb4_copy_colors_active(a3)
 	move.w	#lf_rgb4_colors_number*3,lf_rgb4_colors_counter(a3)
 ; Typewriter-Fader
@@ -2247,12 +2249,19 @@ mouse_handler_skip
 	move.w	d0,bfo_rgb4_active(a3)
 	move.w	d0,bf_rgb4_copy_colors_active(a3)
 	move.w	#bf_rgb4_colors_number*3,bf_rgb4_colors_counter(a3)
+	tst.w	bfi_rgb4_active(a3)	; fader in still active ?
+	bne.s	mouse_handler_skip2
+	move.w	#FALSE,bfi_rgb4_active(a3) ; force stop
+mouse_handler_skip2
 ; Scroll-Sprites-Bottom
 	move.w	ssbo_y_angle(a3),d1
 	tst.w	ss_sprites_visible(a3)
 	bne.s	mouse_handler_quit
 	move.w	d0,ssbo_active(a3)
 	move.w	#(sine_table_length/4)*WORD_SIZE,ssbo_y_angle(a3) ; 90°
+	tst.w	ssbi_active(a3)		; fader in still active ?
+	bne.s	mouse_handler_quit
+	move.w	#FALSE,ssbi_active(a3)	; force stop
 mouse_handler_quit
 	rts
 
