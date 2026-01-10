@@ -51,7 +51,7 @@
 ; V.2.0 beta
 ; - Bugfix: 8xx command routine used the register a0 which lead to a guru 0003
 ; - Typewriter text changed
-; - Typewriter text restart
+; - Typewriter text restart added
 ; - Clear delay increased to 8 seconds
 ; - Backspace delay increased to 3 frames
 ; - Seperator bar added
@@ -319,7 +319,7 @@ vp1_ddfstop_bits		EQU DDFSTOP_OVERSCAN_16_PIXEL
 vp1_bplcon0_bits1		EQU BPLCON0F_COLOR|(extra_pf1_depth*BPLCON0F_BPU0)
 vp1_bplcon0_bits2		EQU BPLCON0F_COLOR
 vp1_bplcon1_bits		EQU 0
-vp1_bplcon2_bits		EQU BPLCON2F_PF2P2 ; sprites in front of playfield 1
+vp1_bplcon2_bits		EQU BPLCON2F_PF2P2 ; priority: sprites in front of playfield 1
 vp1_color00_bits		EQU color00_bits
 
 ; Viewport 2
@@ -328,7 +328,7 @@ vp2_ddfstop_bits		EQU DDFSTOP_OVERSCAN_16_PIXEL
 vp2_bplcon0_bits1		EQU BPLCON0F_COLOR|(extra_pf2_depth*BPLCON0F_BPU0)
 vp2_bplcon0_bits2		EQU BPLCON0F_COLOR
 vp2_bplcon1_bits		EQU 0
-vp2_bplcon2_bits		EQU 0	; sprites behind playfield 1
+vp2_bplcon2_bits		EQU 0	; priority: sprites behind playfield 1
 vp2_color00_bits		EQU color00_bits
 
 
@@ -407,7 +407,7 @@ ss_x_angle_speed		EQU 2
 ss_x_distance			EQU 14
 ss_y_center			EQU display_window_vstart+((visible_lines_number-ss_image_y_size)/2)
 ss_y_radius			EQU (visible_lines_number-ss_image_y_size)/2
-ss_y_angle_speed		EQU 3	; 9, 10
+ss_y_angle_speed		EQU 3
 ss_y_distance			EQU 14
 
 ss_objects_per_sprite_number	EQU ss_reused_sprites_number/ss_used_sprites_number
@@ -622,7 +622,7 @@ cl1_extension5_entry		RS.B cl1_extension5_size*vp2_visible_lines_number
 ; Copper Interrupt
 cl1_WAIT			RS.L 1
 cl1_INTREQ			RS.L 1
-; Reset pointer for VB
+; Reset pointer for vertical blanc
 cl1_COP1LCH			RS.L 1
 cl1_COP1LCL			RS.l 1
 
@@ -659,8 +659,6 @@ cl2_begin			RS.B 0
 cl2_extension1_entry		RS.B cl2_extension1_size*cl2_display_y_size
 
 cl2_COPJMP1			RS.L 1
-
-cl2_end				RS.L 1
 
 copperlist2_size		RS.B 0
 
@@ -1007,6 +1005,7 @@ init_main_variables
 
 ; Clear-Text
 	move.w	d1,ct_delay_counter(a3) ; disable counter
+
 	move.w	d1,ct_backspace_delay_counter(a3)
 
 ; Sine-Sprites
@@ -1030,7 +1029,6 @@ init_main_variables
 	move.w	#lfi_delay,lfi_delay_counter(a3)
 
 ; Logo-Fader-Out
-	moveq	#FALSE,d1
 	move.w	d1,lfo_rgb4_active(a3)
 	move.w	#lfo_delay,lfo_delay_counter(a3)
 
@@ -1106,7 +1104,7 @@ init_main
 	PT_INIT_FINETUNE_TABLE_STARTS
 
 
-	CNOP 0,2
+	CNOP 0,4
 init_colors
 	CPU_INIT_COLOR COLOR00,1,pf1_rgb4_color_table
 	rts
@@ -1200,7 +1198,7 @@ ss_init_sprites_bitmaps_loop2
 	move.l	a4,a1			; image data
 	moveq	#ss_image_y_size-1,d5
 ss_init_sprites_bitmaps_loop3
-	move.l	(a1)+,(a0)+		; copy 1 word plane1&1
+	move.l	(a1)+,(a0)+		; copy 1 word plane1 & plane2
 	dbf	d5,ss_init_sprites_bitmaps_loop3
 	dbf	d6,ss_init_sprites_bitmaps_loop2
 	dbf	d7,ss_init_sprites_bitmaps_loop1
@@ -1400,11 +1398,11 @@ cl1_vp1_set_bitplane_pointers
 	moveq	#extra_pf1_depth-1,d7
 cl1_vp1_set_bitplane_pointers_loop
 	swap	d0
-	move.w	d0,(a0) 	; BPLxPTH
+	move.w	d0,(a0) 		; BPLxPTH
 	addq.w	#QUADWORD_SIZE,a0
 	swap	d0
 	move.w	d0,LONGWORD_SIZE-QUADWORD_SIZE(a0) ; BPLxPTL
-	add.l	d1,d0		; next bitplane
+	add.l	d1,d0			; next bitplane
 	dbf	d7,cl1_vp1_set_bitplane_pointers_loop
 	rts
 
@@ -1419,11 +1417,11 @@ cl1_vp2_set_bitplane_pointers
 	moveq	#extra_pf2_depth-1,d7
 cl1_vp2_set_bitplane_pointers_loop
 	swap	d0
-	move.w	d0,(a0) 	; BPLxPTH
+	move.w	d0,(a0) 		; BPLxPTH
 	addq.w	#QUADWORD_SIZE,a0
 	swap	d0
 	move.w	d0,LONGWORD_SIZE-QUADWORD_SIZE(a0) ; BPLxPTL
-	add.l	d1,d0		; next bitplane
+	add.l	d1,d0			; next bitplane
 	dbf	d7,cl1_vp2_set_bitplane_pointers_loop
 	rts
 
@@ -1431,18 +1429,17 @@ cl1_vp2_set_bitplane_pointers_loop
 	CNOP 0,4
 init_second_copperlist
 	move.l	cl2_construction2(a3),a0 
-	bsr.s	cl2_init_bplpt_registers
+	bsr.s	cl2_init_bpl_registers
 	COP_MOVEQ 0,COPJMP1
-	COP_LISTEND
 	rts
 
 
 	CNOP 0,4
-cl2_init_bplpt_registers
+cl2_init_bpl_registers
 	move.l	#(((cl2_vstart1<<24)|(((cl2_hstart1/4)*2)<<16))|$10000)|$fffe,d0 ; CWAIT
 	move.l	#1<<24,d1 		; next line
 	MOVEF.W	cl2_display_y_size-1,d7
-cl2_init_bplpt_registers_loop
+cl2_init_bpl_registers_loop
 	move.l	d0,(a0)+		; CWAIT
 	COP_MOVEQ 0,BPL4PTH
 	COP_MOVEQ 0,BPL4PTL
@@ -1457,7 +1454,7 @@ cl2_init_bplpt_registers_loop
 	COP_MOVEQ 0,BPL1PTL
 	add.l	d1,d0			; next line
 	COP_MOVEQ 0,BPL1DAT
-	dbf	d7,cl2_init_bplpt_registers_loop
+	dbf	d7,cl2_init_bpl_registers_loop
 	rts
 
 
@@ -1467,7 +1464,8 @@ cl2_init_bplpt_registers_loop
 	CNOP 0,4
 main
 	bsr.s	no_sync_routines
-	bra	beam_routines
+	bsr	beam_routines
+	rts
 
 
 	CNOP 0,4
@@ -1525,7 +1523,7 @@ beam_routines
 ; Result
 	CNOP 0,4
 textwriter
-	move.l	a4,-(a7)
+	movem.l	a4-a5,-(a7)
 	tst.w	tw_active(a3)
 	bne.s	textwriter_quit
 	bsr.s	tw_get_new_char_image
@@ -1556,7 +1554,7 @@ textwriter_skip
 	move.w	d4,tw_cursor_y_position(a3)
 	move.w	#FALSE,tw_active(a3)
 textwriter_quit
-	move.l	(a7)+,a4
+	movem.l	(a7)+,a4-a5
 	rts
 
 
@@ -1576,7 +1574,7 @@ tw_check_control_codes
 	CNOP 0,4
 tw_carriage_return
 	move.w	#tw_delay,tw_delay_counter(a3)
-	bsr.s	tw_clear_cursor
+	bsr	tw_clear_cursor
 	moveq	#tw_text_char_y_size+1,d0
 	add.w	d0,tw_text_char_y_position(a3) ; next text line
 	add.w	d0,tw_cursor_y_position(a3)
@@ -1587,7 +1585,7 @@ tw_carriage_return
 	rts
 	CNOP 0,4
 tw_stop_textwriter
-	bsr.s	tw_clear_cursor
+	bsr	tw_clear_cursor
 	moveq	#FALSE,d0
 	move.w	d0,tw_delay_counter(a3)	; disable counter
 	move.w	d0,tw_cursor_active(a3)
@@ -1604,17 +1602,17 @@ tw_stop_textwriter
 ; Result
 	CNOP 0,4
 tw_copy_character_data
-	WAITBLIT
-	moveq	#tw_text_char_y_size-1,d7
-tw_copy_character_data_loop
+	move.l	a2,a5
+	MULUF.L	2,a5,d0
+	WAITBLIT		; necessary if cpu runs with a cache
+	REPT tw_text_char_y_size
 	move.w	(a0),(a1)	; copy 16 pixel into bitplane 1
 	add.l	a4,a0		; next line in character
 	add.l	a2,a1		; next line in playfield
 	move.w	(a0),(a1)	; copy 16 pixel into bitplane 2
 	add.l	a4,a0		; next line in character
-	add.l	a2,a1		; next line in playfield
-	add.l	a2,a1		; skip bitplane 3 in playfield
-	dbf	d7,tw_copy_character_data_loop
+	add.l	a5,a1		; next line & skip bitplane 3 in playfield
+	ENDR
 	rts
 
 
@@ -1670,7 +1668,7 @@ tw_display_cursor_skip
 	add.l	d0,a1			; add playfield address
 	WAITBLIT
 	move.l	#(BC0F_DEST|ANBNC|ANBC|ABNC|ABC)<<16,BLTCON0-DMACONR(a6) ; minterm D = A
-	moveq	#-1,d0
+	moveq	#-1,d0			; no mask
 	move.l	d0,BLTAFWM-DMACONR(a6)
 	move.w	#%1111111111111100,BLTADAT-DMACONR(a6)	; cursor bitplane data
 	move.l	a1,BLTDPT-DMACONR(a6)
@@ -1706,7 +1704,7 @@ clear_text
 	bpl.s	clear_text_skip1
 	moveq	#0,d4
 clear_text_skip1
-	move.w	#visible_pixels_number-tw_text_char_x_size,d3 ; reset x in text line
+	MOVEF.W	visible_pixels_number-tw_text_char_x_size,d3 ; reset x in text line
 clear_text_skip2
 	move.w	d3,tw_text_char_x_position(a3)
 	move.w	d4,tw_text_char_y_position(a3)
@@ -1720,7 +1718,7 @@ clear_text_quit
 
 	CNOP 0,4
 cl1_update_bpl1dat
-	WAITBLIT
+	WAITBLIT			; necessary if the cpu runs with a chache
 	MOVEF.L	extra_pf2_plane_width*extra_pf2_depth,d1
 	MOVEF.L cl1_extension5_size,d2
 	move.l	extra_pf2(a3),a0
@@ -1740,25 +1738,25 @@ cl1_update_bpl1dat
 	CNOP 0,4
 ss_calculate_xy_coordinates
 	movem.l a3-a6,-(a7)
-	move.w	#ss_x_radius*2*2,d1
-	move.w	#ss_y_radius*2,d2
+	MOVEF.W	ss_x_radius*2*2,d1
+	MOVEF.W	ss_y_radius*2,d2
 	move.w	ss_x_radius_angle(a3),d3
 	move.w	d3,d0		
 	MOVEF.W (sine_table_length-1)*WORD_SIZE,d6 ; overflow 360°
-	move.w	ss_x_angle(a3),d4
 	addq.w	#ss_x_radius_angle_speed*WORD_SIZE,d0
 	and.w	d6,d0			; remove overflow
 	move.w	d0,ss_x_radius_angle(a3) 
-	move.w	d4,d0		
+	move.w	ss_x_angle(a3),d4
+	move.w	d4,d0
 	addq.w	#ss_x_angle_speed*WORD_SIZE,d0
-	move.w	ss_y_angle(a3),d5
 	and.w	d6,d0			; remove overflow
 	move.w	d0,ss_x_angle(a3)	
-	move.w	d5,d0		
+	move.w	ss_y_angle(a3),d5
+	move.w	d5,d0
 	add.w	ss_variable_y_speed(a3),d0
 	and.w	d6,d0			; remove overflow
 	move.w	d0,ss_y_angle(a3)	
-	lea	sine_table(pc),a0	
+	lea	sine_table(pc),a0
 	lea	ss_xy_coordinates(pc),a1
 	move.w	#ss_x_center,a2
 	move.w	ss_variable_y_center(a3),a4
@@ -1947,9 +1945,9 @@ ss_move_sprites_loop
 image_blind_scroll
 	movem.l a3-a6,-(a7)
 	move.l	a7,save_a7(a3)
-	moveq	#0,d0
-	move.w	ibs_image_start(a3),d0
-	move.l	d0,d5			; store startline
+	moveq	#0,d5
+	move.w	ibs_image_start(a3),d5
+	move.l	d5,d0			; store startline
 	addq.w	#ibs_speed,d0		; increase startline
 	cmp.w	#ibs_image_y_size,d0	; end of playfield ?
 	blt.s	image_blind_scroll_skip1
@@ -1987,11 +1985,11 @@ image_blind_scroll_loop2
 	move.l	a0,d0			; bitplane
 	move.w	d0,LONGWORD_SIZE(a2)	; BPLxPTL
 	swap	d0
-	move.w	d0,(a2)			; BPLxPTH
 	add.l	a6,a0			; next bitplane
+	move.w	d0,(a2)			; BPLxPTH
 	sub.l	a7,a2			; previous cl section
 	ENDR
-	lea	LONGWORD_SIZE*25(a2),a2	; skip CWAIT + 24 x CMOVE
+	ADDF.W	LONGWORD_SIZE*25,a2	; skip CWAIT + 24 x CMOVE
 	subq.w	#1,d4			; decrease lines counter
 	beq.s	image_blind_scroll_skip4
 	addq.w	#ibs_step1,d3		; increase startline
@@ -2126,11 +2124,10 @@ bf_rgb4_copy_color_table
 	move.l	cl1_display(a3),a1	; destination: cl
 	ADDF.W	cl1_extension3_entry+cl1_ext3_COLOR00+WORD_SIZE,a1
 	move.w	#cl1_extension3_size,a2
-	MOVEF.W bf_rgb4_colors_number-1,d7
-bf_rgb4_copy_color_table_loop
+	REPT bf_rgb4_colors_number
 	move.w	(a0)+,(a1)		; copy RGB4 value
 	add.l	a2,a1			; next section
-	dbf	d7,bf_rgb4_copy_color_table_loop
+	ENDR
 	tst.w	bf_rgb4_colors_counter(a3)
 	bne.s	bf_rgb4_copy_color_table_quit
 	move.w	#FALSE,bf_rgb4_copy_colors_active(a3)
@@ -2257,6 +2254,7 @@ mouse_handler_quit
 ; Result
 	CNOP 0,4
 control_counters
+; Textwriter
 	move.w	tw_delay_counter(a3),d0
 	bmi.s	control_counters_skip2
 	subq.w	#1,d0
@@ -2315,7 +2313,6 @@ VERTB_server
 	IFD PROTRACKER_VERSION_2 
 		PT2_REPLAY pt_effects_handler
 	ENDC
-
 	IFD PROTRACKER_VERSION_3
 		PT3_REPLAY pt_effects_handler
 	ENDC
@@ -2353,6 +2350,7 @@ pt_select_sprite_movement
 	lea	ss_movements(pc),a1
 	move.w	(a1,d0.w),ss_variable_y_speed(a3)
 	rts
+
 
 	CNOP 0,4
 ciab_tb_server
@@ -2526,17 +2524,6 @@ tw_chars_offsets
 	DS.W tw_ascii_end-tw_ascii
 
 
-; Clear-Text
-ct_ascii
-	DC.B "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.!?-'():\/&<>#*°¹²³³@+ "
-ct_ascii_end
-	EVEN
-
-	CNOP 0,2
-ct_chars_offsets
-	DS.W ct_ascii_end-tw_ascii
-
-
 ; Sine-Sprites
 	CNOP 0,2
 ss_xy_starts
@@ -2606,7 +2593,7 @@ tfo_rgb4_color_table
 	DC.B "$VER: "
 	DC.B "Lowres4Intro "
 	DC.B "2.0 beta "
-	DC.B "(9.1.26) "
+	DC.B "(10.1.26) "
 	DC.B "© 2026 by Resistance",0
 	EVEN
 
