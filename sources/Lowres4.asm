@@ -57,6 +57,13 @@
 ; - Seperator bar added
 ; - Bar fader added
 
+; V.2.1 beta
+; - Vertical blank height between vp1 and vp2 decreased to 10 lines
+; - Bugfix: After scrolled out the sprites still appeared at the bottom of the
+;   screen. BPL1DAT also opened the display window > $12b. vp2 visible lines
+;   decreased by 1 for all bplxdat functions.
+;   Last BPL1DAT write at $12b by CMOVE
+
 
 ; 8xy command
 ; 810	scroll sprites bottom in
@@ -264,7 +271,7 @@ vp1_pf1_colors_number		EQU 16
 vp1_pf_colors_number		EQU vp1_pf1_colors_number
 
 ; Vertical Blank
-vb_lines_number			EQU 12
+vb_lines_number			EQU 10
 vb_hstart			EQU 0
 vb_vstart			EQU vp1_vstop
 vb_vstop			EQU vb_vstart+vb_lines_number
@@ -618,7 +625,7 @@ cl1_extension2_entry		RS.B cl1_extension2_size
 cl1_extension3_entry		RS.B cl1_extension3_size*vb_lines_number
 ; Viewport 2
 cl1_extension4_entry		RS.B cl1_extension4_size
-cl1_extension5_entry		RS.B cl1_extension5_size*vp2_visible_lines_number
+cl1_extension5_entry		RS.B cl1_extension5_size*(vp2_visible_lines_number-1)
 ; Copper Interrupt
 cl1_WAIT			RS.L 1
 cl1_INTREQ			RS.L 1
@@ -1356,7 +1363,7 @@ cl1_vp2_init_bpldat
 	move.l	#BPL3DAT<<16,d3
 	move.l	#(((CL_Y_WRAPPING<<24)|(((cl1_hstart6/4)*2)<<16))|$10000)|$fffe,d4 ; CWAIT
 	move.l	#1<<24,d5
-	MOVEF.W vp2_visible_lines_number-1,d7
+	MOVEF.W (vp2_visible_lines_number-1)-1,d7
 cl1_vp2_init_bpldat_loop
 	move.l	d0,(a0)+		; CWAIT
 	move.l	d3,(a0)+		; BPL3DAT
@@ -1725,7 +1732,7 @@ cl1_update_bpl1dat
 	ADDF.W	vp2_pf1_bpl1dat_x_offset/8,a0
 	move.l	cl1_display(a3),a1
 	ADDF.W	cl1_extension5_entry+cl1_ext5_BPL1DAT+WORD_SIZE,a1
-	REPT vp2_visible_lines_number
+	REPT vp2_visible_lines_number-1
 	move.w	extra_pf2_plane_width*2(a0),cl1_ext5_BPL3DAT-cl1_ext5_BPL1DAT(a1) ; 1st word bitplane 3
 	move.w	(a0),(a1)		; 1st word bitplane 1
 	add.l	d1,a0			; next line in playfield
