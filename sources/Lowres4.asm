@@ -65,8 +65,13 @@
 ;   Last BPL1DAT write at $12b by CMOVE
 ; - Enabling of fader out routines improved at quit. Fader in routines are
 ;   forced to stop
+
+
+; V.1.0
+; - final version
 ; - WB start enabled
 ; - Fader inabled
+; - adf created
 
 
 ; 8xy command
@@ -2622,38 +2627,38 @@ tfo_rgb4_color_table
 ; Textwriter
 tw_text
 ; Page 1
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "WELCOME #"
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "AND ENJOY"
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "THE LOW RESOLUTION."
 	DC.B ASCII_CTRL_S," "
 
 ; Page 2
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "INSERT DISK."
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "FLIP THE SWITCH."
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "WAIT FOR THE MAGIC."
 	DC.B ASCII_CTRL_S," "
 
 ; Page 3
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "RETRO COMPUTERS."
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "REAL HARDWARE."
-	DC.B ASCII_CTRL_M," "
-	DC.B ASCII_CTRL_M," "
+	DC.B ASCII_CTRL_M
+	DC.B ASCII_CTRL_M
 	DC.B "PURE CREATIVITY."
 	DC.B ASCII_CTRL_S," "
 
