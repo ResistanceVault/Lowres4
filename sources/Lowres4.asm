@@ -58,13 +58,15 @@
 ; - Bar fader added
 
 ; V.2.1 beta
-; - Vertical blank height between vp1 and vp2 decreased to 10 lines
+; - Vertical blank height between vp1 and vp2 reduced to 10 lines
 ; - Bugfix: After scrolled out the sprites still appeared at the bottom of the
 ;   screen. BPL1DAT also opened the display window > $12b. vp2 visible lines
 ;   decreased by 1 for all bplxdat functions.
 ;   Last BPL1DAT write at $12b by CMOVE
 ; - Enabling of fader out routines improved at quit. Fader in routines are
 ;   forced to stop
+; - WB start enabled
+; - Fader inabled
 
 
 ; 8xy command
@@ -2241,27 +2243,28 @@ mouse_handler
 mouse_handler_skip1
 	move.w	d0,lf_rgb4_copy_colors_active(a3)
 	move.w	#lf_rgb4_colors_number*3,lf_rgb4_colors_counter(a3)
-; Typewriter-Fader
+; Text-Fader
 	move.w	d0,tfo_rgb4_active(a3)
 	move.w	d0,tf_rgb4_copy_colors_active(a3)
 	move.w	#tf_rgb4_colors_number*3,tf_rgb4_colors_counter(a3)
 ; Bar-Fader
-	move.w	d0,bfo_rgb4_active(a3)
-	move.w	d0,bf_rgb4_copy_colors_active(a3)
-	move.w	#bf_rgb4_colors_number*3,bf_rgb4_colors_counter(a3)
-	tst.w	bfi_rgb4_active(a3)	; fader in still active ?
+	tst.w	bfi_rgb4_active(a3)	; fader still active ?
 	bne.s	mouse_handler_skip2
-	move.w	#FALSE,bfi_rgb4_active(a3) ; force stop
+	move.w	#FALSE,bfi_rgb4_active(a3) ; force fader stop
 mouse_handler_skip2
+	move.w	d0,bfo_rgb4_active(a3)
+	move.w	#bf_rgb4_colors_number*3,bf_rgb4_colors_counter(a3)
+	move.w	d0,bf_rgb4_copy_colors_active(a3)
 ; Scroll-Sprites-Bottom
 	move.w	ssbo_y_angle(a3),d1
 	tst.w	ss_sprites_visible(a3)
 	bne.s	mouse_handler_quit
+	tst.w	ssbi_active(a3)		; fader still active ?
+	bne.s	mouse_handler_skip3
+	move.w	#FALSE,ssbi_active(a3)	; force fader stop
+mouse_handler_skip3
 	move.w	d0,ssbo_active(a3)
 	move.w	#(sine_table_length/4)*WORD_SIZE,ssbo_y_angle(a3) ; 90°
-	tst.w	ssbi_active(a3)		; fader in still active ?
-	bne.s	mouse_handler_quit
-	move.w	#FALSE,ssbi_active(a3)	; force stop
 mouse_handler_quit
 	rts
 
@@ -2342,8 +2345,8 @@ pt_effects_handler
 	beq.s	pt_scroll_sprites_bottom_in
 	cmp.b	#$11,d0
 	beq.s	pt_scroll_sprites_bottom_out
-	lsr.b	#4,d0			; 80y
-	cmp.b	#2,d0
+	and.b	#NIBBLE_MASK_HIGH,d0
+	cmp.b	#$20,d0
 	beq.s	pt_select_sprite_movement
 pt_effects_handler_quit
 	rts
@@ -2360,11 +2363,13 @@ pt_scroll_sprites_bottom_out
 	rts
 	CNOP 0,4
 pt_select_sprite_movement
+	move.l	a0,-(a7)
 	moveq	#NIBBLE_MASK_LOW,d0
 	and.b	n_cmdlo(a2),d0
 	MULUF.W	WORD_SIZE,d0,d7
-	lea	ss_movements(pc),a1
-	move.w	(a1,d0.w),ss_variable_y_speed(a3)
+	lea	ss_movements(pc),a0
+	move.w	(a0,d0.w),ss_variable_y_speed(a3)
+	move.l	(a7)+,a0
 	rts
 
 
