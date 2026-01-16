@@ -65,12 +65,13 @@
 ;   Last BPL1DAT write at $12b by CMOVE
 ; - Enabling of fader out routines improved at quit. Fader in routines are
 ;   forced to stop
-
+; - WB start enabled
+; - Fader inabled
+; - Lun NuNix' icon included
 
 ; V.1.0
 ; - final version
-; - WB start enabled
-; - Fader inabled
+; - nfo included
 ; - adf created
 
 
@@ -132,8 +133,8 @@ requires_060_cpu		EQU FALSE
 requires_fast_memory    	EQU FALSE
 requires_multiscan_monitor	EQU FALSE
 
-workbench_start_enabled 	EQU FALSE
-screen_fader_enabled		EQU FALSE
+workbench_start_enabled 	EQU TRUE
+screen_fader_enabled		EQU TRUE
 text_output_enabled     	EQU FALSE
 
 ; PT-Replay
@@ -1194,7 +1195,8 @@ ss_init_xy_starts_loop
 init_sprites
 	bsr.s	spr_init_pointers_table
 	bsr	ss_init_sprites_bitmaps
-	bra	spr_copy_structures
+	bsr	spr_copy_structures
+	rts
 
 
 	INIT_SPRITE_POINTERS_TABLE
@@ -2325,7 +2327,8 @@ vertb_interrupt_server
 ; PT-Replay
 	IFEQ pt_music_fader_enabled
 		bsr.s	pt_music_fader
-		bra.s	pt_PlayMusic
+		bsr.s	pt_PlayMusic
+		rts
 
 		PT_FADE_OUT_VOLUME stop_fx_active
 
@@ -2616,8 +2619,8 @@ tfo_rgb4_color_table
 
 	DC.B "$VER: "
 	DC.B "Lowres4Intro "
-	DC.B "2.0 beta "
-	DC.B "(10.1.26) "
+	DC.B "2.1 beta "
+	DC.B "(15.1.26) "
 	DC.B "© 2026 by Resistance",0
 	EVEN
 
