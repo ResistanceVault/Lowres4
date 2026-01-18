@@ -67,7 +67,11 @@
 ;   forced to stop
 ; - WB start enabled
 ; - Fader inabled
-; - Lun NuNix' icon included
+; - LuNix' icon included
+
+; V.2.2 beta
+; - Code optimized
+; - With LuNix´updated icon
 
 ; V.1.0
 ; - final version
@@ -120,6 +124,7 @@
 
 
 PROTRACKER_VERSION_3		SET 1
+START_SECOND_COPPERLIST		SET 1
 
 
 	INCLUDE "macros.i"
@@ -1098,11 +1103,6 @@ init_main
 	bsr	init_sprites
 	bsr	init_first_copperlist
 	bsr	init_second_copperlist
-	bsr	copy_second_copperlist
-	bsr	image_blind_scroll
-	bsr	swap_second_copperlist
-	bsr	set_second_copperlist
-	bsr	image_blind_scroll
 	rts
 
 
@@ -1449,6 +1449,12 @@ init_second_copperlist
 	move.l	cl2_construction2(a3),a0 
 	bsr.s	cl2_init_bpl_registers
 	COP_MOVEQ 0,COPJMP1
+	bsr	copy_second_copperlist
+
+	bsr	swap_second_copperlist
+	bsr	image_blind_scroll
+	bsr	swap_second_copperlist
+	bsr	image_blind_scroll
 	rts
 
 
@@ -2619,8 +2625,8 @@ tfo_rgb4_color_table
 
 	DC.B "$VER: "
 	DC.B "Lowres4Intro "
-	DC.B "2.1 beta "
-	DC.B "(15.1.26) "
+	DC.B "2.2 beta "
+	DC.B "(18.1.26) "
 	DC.B "© 2026 by Resistance",0
 	EVEN
 
