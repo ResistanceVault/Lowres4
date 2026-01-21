@@ -1251,7 +1251,7 @@ init_first_copperlist
 	bsr	cl1_vp2_init_bpldat
 ; Copper-Interrupt
 	bsr	cl1_init_copper_interrupt
-	bsr	cl1_set_copperlist_pointer
+	bsr	cl1_reset_copperlist_pointer
 	COP_LISTEND
 	bsr	cl1_vp1_set_bitplane_pointers
 	bsr	cl1_vp2_set_bitplane_pointers
@@ -1396,7 +1396,7 @@ cl1_vp2_init_bpldat_skip
 
 
 	CNOP 0,4
-cl1_set_copperlist_pointer
+cl1_reset_copperlist_pointer
 	move.l	cl1_display(a3),d0
 	swap	d0
 	move.w	#COP1LCH,(a0)+
