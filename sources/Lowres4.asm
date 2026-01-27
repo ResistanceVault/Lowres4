@@ -1,6 +1,6 @@
 ; Requirements
 ; 68000+
-; OCS+
+; OCS PAL+
 ; 1.2+
 
 
