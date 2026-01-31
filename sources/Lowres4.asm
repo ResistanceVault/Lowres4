@@ -1591,12 +1591,12 @@ textwriter_quit
 	CNOP 0,4
 tw_check_control_codes
 	cmp.b	#ASCII_CTRL_M,d0
-	beq.s	tw_carriage_return
+	beq.s	tw_line_break
 	cmp.b	#ASCII_CTRL_S,d0
 	beq.s	tw_stop_textwriter
 	rts
 	CNOP 0,4
-tw_carriage_return
+tw_line_break
 	move.w	#tw_delay,tw_delay_counter(a3)
 	bsr	tw_clear_cursor
 	moveq	#tw_text_char_y_size+1,d0
