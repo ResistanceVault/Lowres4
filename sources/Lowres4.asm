@@ -324,13 +324,14 @@ extra_pf2_plane_width		EQU extra_pf2_x_size/8
 
 ; Viewport 1
 ; Playfield 1
+vp1_pf1_plane_width		EQU extra_pf1_plane_width
 vp1_data_fetch_width		EQU vp1_pixel_per_line/8
-vp1_pf1_plane_moduli		EQU (extra_pf1_plane_width*(extra_pf1_depth-1))+extra_pf1_plane_width-vp1_data_fetch_width
-
+vp1_pf1_plane_moduli		EQU (vp1_pf1_plane_width*(vp1_pf1_depth-1))+vp1_pf1_plane_width-vp1_data_fetch_width
 ; Viewport 2
-; Playfield 1 
+; Playfield 1
+vp2_pf1_plane_width		EQU extra_pf2_plane_width
 vp2_data_fetch_width		EQU vp2_pixel_per_line/8
-vp2_pf1_plane_moduli		EQU (extra_pf2_plane_width*(extra_pf2_depth-1))+extra_pf2_plane_width-vp2_data_fetch_width
+vp2_pf1_plane_moduli		EQU (vp2_pf1_plane_width*(vp2_pf1_depth-1))+vp2_pf1_plane_width-vp2_data_fetch_width
 
 
 ; View
@@ -1130,7 +1131,7 @@ init_main
 
 	CNOP 0,4
 init_colors
-	CPU_INIT_COLOR COLOR00,1,pf1_rgb4_color_table
+	CPU_LOAD_COLORMAP COLOR00,1,pf1_rgb4_color_table
 	rts
 
 
@@ -1271,7 +1272,7 @@ cl1_init_copperlist
 
 	CNOP 0,4
 cl1_init_colors
-	COP_INIT_COLOR COLOR16,16,spr_rgb4_color_table
+	COP_LOAD_COLORMAP COLOR16,16,spr_rgb4_color_table
 	rts
 
 	COP_SET_SPRITE_POINTERS cl1,display,spr_number
@@ -1282,7 +1283,7 @@ cl1_init_colors
 
 	CNOP 0,4
 cl1_vp1_init_colors
-	COP_INIT_COLOR COLOR00,16,vp1_pf1_rgb4_color_table
+	COP_LOAD_COLORMAP COLOR00,16,vp1_pf1_rgb4_color_table
 	rts
 
 	CNOP 0,4
@@ -1347,7 +1348,7 @@ cl1_vb_init_bpldat_loop
 
 	CNOP 0,4
 cl1_vp2_init_colors
-	COP_INIT_COLOR COLOR00,8,vp2_pf1_rgb4_color_table
+	COP_LOAD_COLORMAP COLOR00,8,vp2_pf1_rgb4_color_table
 	rts
 
 	CNOP 0,4
